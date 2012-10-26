@@ -1,0 +1,37 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+    <script type="text/javascript">
+        function WebSocketTest() {
+            if ("WebSocket" in window) {
+                var ws = new WebSocket("ws://localhost:1981/ws/topicbox");
+                ws.onopen = function() {
+                    ws.send("foo");
+                };
+                ws.onmessage = function(evt)
+                {
+                    var received_msg = evt.data;
+                    alert("message received : " + received_msg);
+                };
+                ws.onerror = function(error)
+                {
+                    alert("websocket error : " + error.type);
+                };
+                ws.onclose = function()
+                {
+                    // alert("connection closed...");
+                };
+            } else {
+                alert("websocket is not supported by your browser");
+            }
+        }
+    </script>
+</head>
+
+<body>
+<div id="foo">
+    <a href="javascript:WebSocketTest()">exec()</a>
+</div>
+</body>
+
+</html>

@@ -1,4 +1,4 @@
 topicbox
 ========
 
-streaming topic modeling for the masses 
+simple streaming topic modeling for the masses :)
