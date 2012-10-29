@@ -19,6 +19,8 @@ public class TextCorpus extends Csv2Vectors {
 
     private AtomicInteger docCounter = new AtomicInteger();
 
+    private List<String> docs = new ArrayList<String>();
+
     Pipe defaultPipe;
     InstanceList instances;
 
@@ -45,6 +47,7 @@ public class TextCorpus extends Csv2Vectors {
     }
 
     public void add(Iterator<String> source) {
+        System.out.println("ADD STREAMING SOURCE !!!");
         while (source.hasNext()) {
             add(source.next());
         }
@@ -56,6 +59,7 @@ public class TextCorpus extends Csv2Vectors {
      * @param text
      */
     public void add(String text) {
+        docs.add(text);
         instances.add(defaultPipe.instanceFrom(new Instance(text, "foo", docCounter.getAndIncrement(), null)));
     }
 
@@ -68,6 +72,23 @@ public class TextCorpus extends Csv2Vectors {
         return instances;
     }
 
+    /**
+     * get list of all documents
+     * @return
+     */
+    public List<String> getDocs() {
+        return docs;
+    }
+
+    /**
+     * get subset of all available documents
+     *
+     * @param maxDocs
+     * @return
+     */
+    public List<String> getDocs(int maxDocs) {
+        return getDocs().subList(0, maxDocs);
+    }
 
     /**
      * get number of documents in the corpus

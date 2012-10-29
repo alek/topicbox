@@ -2,12 +2,13 @@ package com.voidsearch.topicbox.source;
 
 import org.testng.annotations.Test;
 
-public class TwitterStreamingSourceTest {
+public class HttpStreamingSourceTest {
 
     @Test
     public void nullTest() {
         try {
-            TwitterStreamingSource source = new TwitterStreamingSource("http://stream.twitter.com/1/statuses/sample.json?delimited=length");
+            //HttpStreamingSource source = new HttpStreamingSource("http://stream.twitter.com/1/statuses/sample.json?delimited=length");
+            HttpStreamingSource source = new HttpStreamingSource("http://localhost/foo");
             while (source.hasNext()) {
                 System.out.println(source.next());
             }

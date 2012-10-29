@@ -1,5 +1,10 @@
 package com.voidsearch.topicbox.server;
 
+import com.voidsearch.topicbox.lda.TextCorpus;
+import com.voidsearch.topicbox.lda.TopicModel;
+import com.voidsearch.topicbox.lda.TopicModelGenerator;
+import com.voidsearch.topicbox.lda.TopicModelTaskManager;
+import org.codehaus.jackson.map.ObjectMapper;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
@@ -8,22 +13,22 @@ import org.jboss.netty.util.CharsetUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.activation.MimetypesFileTypeMap;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.net.FileNameMap;
-import java.net.URLConnection;
 
 public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(TopicboxServer.class.getName());
-    private static final String DOCUMENT_ROOT = "/www";
+    private static final String DOCUMENT_ROOT = "/webapp";
     private static final String WEBSOCKET_URI = "/ws";
 
-    private static final FileNameMap fileNameMap = URLConnection.getFileNameMap();
+    private static final MimetypesFileTypeMap mimeTypesMap = new MimetypesFileTypeMap();
 
     private WebSocketServerHandshaker handshaker;
+    private ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
@@ -77,8 +82,11 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
         if (logger.isInfoEnabled()) {
             logger.info("got query :  " + req.getUri());
         }
-        
+
         File fileRequested = new File(req.getUri().substring(1));
+        if (fileRequested.isDirectory()) {
+            fileRequested = new File(fileRequested, "index.html");
+        }
 
         if (!fileRequested.exists()) {
             sendError(ctx, HttpResponseStatus.NOT_FOUND);
@@ -91,7 +99,8 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
 
             RandomAccessFile raf = new RandomAccessFile(fileRequested, "r");
             response.setHeader(HttpHeaders.Names.CONTENT_LENGTH, raf.length());
-            response.setHeader(HttpHeaders.Names.CONTENT_TYPE, fileNameMap.getContentTypeFor(fileRequested.getCanonicalPath()));
+
+            response.setHeader(HttpHeaders.Names.CONTENT_TYPE, getContentType(fileRequested));
 
             Channel ch = e.getChannel();
             ch.write(response);
@@ -117,6 +126,20 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
             return;
         }
 
+    }
+
+    /**
+     * get valid content type corresponding to given file
+     *
+     * @param f - file descriptor
+     * @return
+     */
+    public String getContentType(File f) {
+        if (f.getName().endsWith(".css")) {
+            return "text/css";
+        } else {
+            return mimeTypesMap.getContentType(f);
+        }
     }
 
     /**
@@ -164,6 +187,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
      * @throws Exception
      */
     private void handleWebSocketFrame(ChannelHandlerContext ctx, WebSocketFrame frame) throws Exception {
+
         if (frame instanceof CloseWebSocketFrame) {
             handshaker.close(ctx.getChannel(), (CloseWebSocketFrame)frame);
             return;
@@ -173,9 +197,65 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
         } else if (!(frame instanceof TextWebSocketFrame)) {
             throw new UnsupportedOperationException(String.format("%s frame types not supported", frame.getClass().getName()));
         }
-        
+
         String request = ((TextWebSocketFrame)frame).getText();
-        logger.info(String.format("request: %s", request));
+
+        if (logger.isInfoEnabled()) {
+            logger.info(String.format("request: %s", request));
+        }
+
+        if ("loadTopics".equals(request)) {
+
+            if (TopicModelTaskManager.getInstance().getModelCount() == 0) {
+                ctx.getChannel().write(new TextWebSocketFrame("MODEL_NOT_AVAILABLE"));
+                return;
+            }
+
+            TopicModel model = TopicModelTaskManager.getInstance().getRandomModel();
+            Object[][] topKeywords = model.getModelTopKeywords();
+
+            String rsp = mapper.writeValueAsString(topKeywords);
+
+            ctx.getChannel().write(new TextWebSocketFrame(rsp));
+            return;
+            
+        } else if ("loadData".equals(request)) {
+
+            if (TopicModelTaskManager.getInstance().getModelCount() == 0) {
+                ctx.getChannel().write(new TextWebSocketFrame("MODEL_NOT_AVAILABLE`"));
+                return;
+            }
+
+            TopicModelGenerator modelGenerator = TopicModelTaskManager.getInstance().getRandomModelGenerator();
+            TextCorpus corpus = modelGenerator.getCorpus();
+
+            // fake data - testing ui
+            Object[][] data = new Object[10][];
+            for (int i=0; i<10; i++) {
+                data[i] = corpus.getDocs(10).toArray();
+            }
+
+            String rsp = mapper.writeValueAsString(data);
+
+            ctx.getChannel().write(new TextWebSocketFrame(rsp));
+
+            return;
+
+        } else if (request.startsWith("submitLDATask:")) {
+
+            String taskName = request.split(":")[1];
+
+            TopicModelTaskManager.getInstance().submitTask(taskName);
+
+            while (!TopicModelTaskManager.getInstance().getGenerator(taskName).modelComplete()) {
+                ctx.getChannel().write(new TextWebSocketFrame("model estimation in progress..."));
+                Thread.sleep(1000);
+            }
+
+            ctx.getChannel().write(new TextWebSocketFrame("model estimation complete ..."));
+            return;
+
+        }
 
         ctx.getChannel().write(new TextWebSocketFrame(request.toUpperCase()));
     }

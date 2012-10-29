@@ -1,0 +1,37 @@
+package com.voidsearch.topicbox.source;
+
+import com.voidsearch.topicbox.lda.TextCorpus;
+
+import java.io.File;
+
+public class TopicboxDataSourceFactory {
+
+    public enum TaskName {
+        TWITTER,
+        SYSLOG,
+        RSS,
+        CUSTOM
+    }
+    
+    public static TextCorpus getData(String taskName) throws Exception {
+
+        TextCorpus corpus = new TextCorpus();
+
+        switch (TaskName.valueOf(taskName)) {
+            case TWITTER:
+                //corpus.add(new HttpStreamingSource<String>("http://stream.twitter.com/1/statuses/sample.json?delimited=length"));
+                //corpus.add(new HttpStreamingSource<String>("http://localhost/foo"));
+                corpus.add(new LocalFileSource<String>(new File("/tmp/foo")));
+                break;
+            case SYSLOG:
+                corpus.add(new LocalFileSource<String>(new File("/var/log/launchd-shutdown.log")));
+                break;
+            case CUSTOM:
+                corpus.add(new LocalFileSource<String>(new File("/tmp/foo")));
+                break;
+        }
+
+        return corpus;
+    }
+
+}

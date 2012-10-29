@@ -6,12 +6,12 @@ import com.voidsearch.topicbox.client.TopicboxClient;
 import java.net.URI;
 import java.util.Iterator;
 
-public class TwitterStreamingSource implements Iterator {
+public class HttpStreamingSource<T> implements Iterator<T> {
 
     TopicboxClient client;
     ResponseCallback<String> callback;
-    
-    public TwitterStreamingSource(String url) throws Exception {
+
+    public HttpStreamingSource(String url) throws Exception {
         client = (new TopicboxClient(new URI(url)));
         callback = client.getCallback();
         client.run();
@@ -25,7 +25,7 @@ public class TwitterStreamingSource implements Iterator {
         //To change body of implemented methods use File | Settings | File Templates.
     }
 
-    public String next() {
-        return callback.next();
+    public T next() {
+        return (T) callback.next();
     }
 }

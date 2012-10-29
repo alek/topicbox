@@ -5,8 +5,14 @@ import cc.mallet.types.InstanceList;
 
 public class TopicModel {
 
+    private static final int MAX_TOPICS = 10;       // max latent topics
+    private static final int MAX_KEYWORDS = 25;     // max top keywords per topic
+    
+    private ParallelTopicModel topicModel;
+
     /**
      * update model from given text corpus
+     * TODO : pass custom configuration
      *
      * @param corpus
      * @throws Exception
@@ -17,10 +23,10 @@ public class TopicModel {
         InstanceList trainingData = corpus.getInstances();
         
         //int numTopics = MalletConfig.numTopics.value;
-        int numTopics = 50;
+        int numTopics = MAX_TOPICS;
 
         // create new topic model
-        ParallelTopicModel topicModel = new ParallelTopicModel (numTopics, MalletConfig.alpha.value, MalletConfig.beta.value);
+        topicModel = new ParallelTopicModel (numTopics, MalletConfig.alpha.value, MalletConfig.beta.value);
 
         topicModel.setRandomSeed(MalletConfig.randomSeed.value);
 
@@ -35,7 +41,15 @@ public class TopicModel {
         topicModel.setNumThreads(MalletConfig.numThreads.value);
         
         topicModel.estimate();
+        
+    }
 
+    public boolean hasTopics() {
+        return (topicModel != null) && (topicModel.numTopics > 0);
+    }
+
+    public Object[][] getModelTopKeywords() {
+        return topicModel.getTopWords(MAX_KEYWORDS);
     }
 
 }

@@ -58,6 +58,7 @@ public class TopicboxServer {
         bootstrap.bind(new InetSocketAddress(port));
 
         logger.info("topicbox server listening at port : " + port);
+        logger.info("webapp available at : http://localhost:" + port + "/webapp/");
 
     }
 
