@@ -6,11 +6,19 @@ function submitLDATask(task) {
 	try {
 		var socket = new WebSocket("ws://localhost:1981/ws/");
 		socket.onopen = function() {
-			socket.send("submitLDATask:" + task);
+			socket.send("SUBMIT_LDA_TASK:" + task);
 			message("submitted task : <h1>" + task + "</h1>")
 		}
 		socket.onmessage = function(msg) {
-			message("received message : " + msg.data);
+			if (msg.data.indexOf("TASK_NAME") == 0) {
+				$("#selected_dataset").empty();
+				$("#selected_dataset").append(msg.data.substring("TASK_NAME".length));
+			} else {
+				message(msg.data);
+			}
+		}
+		socket.onclose = function() {
+			message("[+] use <a href=\"#\" onClick=onclick=loadTopics()>Topic View</a> to start browsing");
 		}
 	} catch (exception) {
 		message("error submitting task to topicbox server");
@@ -26,12 +34,12 @@ function loadTopics() {
 	try {
 		var socket = new WebSocket("ws://localhost:1981/ws/");
 		socket.onopen = function() {
-			socket.send("loadTopics");
+			socket.send("LOAD_TOPICS:" + $("#selected_dataset").text());
 		}
 		socket.onmessage = function(msg) {
 			clearCanvas();
 			if (msg.data == "MODEL_NOT_AVAILABLE") {
-				message("no models available");
+				renderNoDataAvailable();
 				return;
 			}
 			var result = $.parseJSON(msg.data);
@@ -70,12 +78,12 @@ function loadData() {
 	try {
 		var socket = new WebSocket("ws://localhost:1981/ws/");
 		socket.onopen = function() {
-			socket.send("loadData");
+			socket.send("LOAD_DATA:" + $("#selected_dataset").text());
 		}
 		socket.onmessage = function(msg) {
 			clearCanvas();
 			if (msg.data == "MODEL_NOT_AVAILABLE") {
-				message("no models available");
+				renderNoDataAvailable();
 				return;
 			}
 			var result = $.parseJSON(msg.data);
@@ -107,6 +115,10 @@ function loadData() {
 	} catch (exception) {
 		message("error loading topics ...")
 	}
+}
+
+function renderNoDataAvailable() {
+	message("[+] no data available. use <a href=\"#\" onClick=window.location.reload()>configure</a> tab to select data source");
 }
 
 // get entry box width

@@ -57,6 +57,10 @@ public class TopicModelTaskManager {
         return taskMap.size();
     }
     
+    public boolean containsModel(String taskName) {
+        return taskMap.containsKey(taskName);
+    }
+
     /**
      * get model corresponding to given task
      *

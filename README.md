@@ -1,6 +1,8 @@
 topicbox | simple topic modeling for fun & profit
 --------------------------------
 
+(work in progress - nothing useful here yet)
+
 What's All This [topicbox] Stuff Anyhow ?
 
 * simple (streaming) topic modeling service
@@ -18,5 +20,16 @@ Apache Public License (APL) 2.0
 
 ### Getting Started
 
-TBD
+Build :
 
+    mvn clean package
+
+Start the service :
+
+    sh bin/topicbox-server.sh -port 1981
+
+Visit the app :
+
+    http://localhost:1981/webapp/
+
+TBD

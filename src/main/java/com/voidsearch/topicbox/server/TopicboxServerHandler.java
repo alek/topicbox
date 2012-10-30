@@ -30,6 +30,19 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
     private WebSocketServerHandshaker handshaker;
     private ObjectMapper mapper = new ObjectMapper();
 
+    private TopicModelTaskManager topicModelTaskManager = TopicModelTaskManager.getInstance();
+
+    public enum WebsocketRequests {
+        LOAD_TOPICS,                    // load available topics for given model
+        LOAD_DATA,                      // load data samples for given model
+        SUBMIT_LDA_TASK                 // submit data for model estimation
+    }
+
+    public enum WebsocketResponses {
+        TASK_NAME,                      // name of active task
+        MODEL_NOT_AVAILABLE             // no model available corresponding to given dataset
+    }
+
     @Override
     public void messageReceived(ChannelHandlerContext ctx, MessageEvent e) throws Exception {
 
@@ -204,29 +217,35 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
             logger.info(String.format("request: %s", request));
         }
 
-        if ("loadTopics".equals(request)) {
+        if (request.startsWith(WebsocketRequests.LOAD_TOPICS.toString())) {
+            
+            String datasetName = request.substring(WebsocketRequests.LOAD_TOPICS.toString().length() + 1);
 
-            if (TopicModelTaskManager.getInstance().getModelCount() == 0) {
-                ctx.getChannel().write(new TextWebSocketFrame("MODEL_NOT_AVAILABLE"));
+            if (topicModelTaskManager.getModelCount() == 0 || !topicModelTaskManager.containsModel(datasetName)) {
+                ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.MODEL_NOT_AVAILABLE.toString()));
                 return;
             }
 
-            TopicModel model = TopicModelTaskManager.getInstance().getRandomModel();
+            TopicModel model = topicModelTaskManager.getModel(datasetName);
             Object[][] topKeywords = model.getModelTopKeywords();
 
             String rsp = mapper.writeValueAsString(topKeywords);
 
             ctx.getChannel().write(new TextWebSocketFrame(rsp));
-            return;
-            
-        } else if ("loadData".equals(request)) {
+            ctx.getChannel().close();
 
-            if (TopicModelTaskManager.getInstance().getModelCount() == 0) {
-                ctx.getChannel().write(new TextWebSocketFrame("MODEL_NOT_AVAILABLE`"));
+            return;
+
+        } else if (request.startsWith(WebsocketRequests.LOAD_DATA.toString())) {
+
+            String datasetName = request.substring(WebsocketRequests.LOAD_DATA.toString().length() + 1);
+
+            if (topicModelTaskManager.getModelCount() == 0 || !topicModelTaskManager.containsModel(datasetName)) {
+                ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.MODEL_NOT_AVAILABLE.toString()));
                 return;
             }
 
-            TopicModelGenerator modelGenerator = TopicModelTaskManager.getInstance().getRandomModelGenerator();
+            TopicModelGenerator modelGenerator = topicModelTaskManager.getGenerator(datasetName);
             TextCorpus corpus = modelGenerator.getCorpus();
 
             // fake data - testing ui
@@ -238,28 +257,33 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
             String rsp = mapper.writeValueAsString(data);
 
             ctx.getChannel().write(new TextWebSocketFrame(rsp));
+            ctx.getChannel().close();
 
             return;
 
-        } else if (request.startsWith("submitLDATask:")) {
+        } else if (request.startsWith(WebsocketRequests.SUBMIT_LDA_TASK.toString())) {
 
             String taskName = request.split(":")[1];
 
-            TopicModelTaskManager.getInstance().submitTask(taskName);
+            topicModelTaskManager.submitTask(taskName);
 
-            while (!TopicModelTaskManager.getInstance().getGenerator(taskName).modelComplete()) {
+            ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.TASK_NAME.toString()+taskName));
+
+            while (!topicModelTaskManager.getGenerator(taskName).modelComplete()) {
                 ctx.getChannel().write(new TextWebSocketFrame("model estimation in progress..."));
                 Thread.sleep(1000);
             }
 
             ctx.getChannel().write(new TextWebSocketFrame("model estimation complete ..."));
+
+            ctx.getChannel().close();
+
             return;
 
         }
 
         ctx.getChannel().write(new TextWebSocketFrame(request.toUpperCase()));
     }
-
 
     /**
      * send http error response

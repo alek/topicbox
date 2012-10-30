@@ -28,6 +28,10 @@ div.container {
 	margin: 0 auto;
 }
 
+span#selected_dataset {
+	font-weight: bold;
+}
+
 section {
 	clear: both;
 }
@@ -60,6 +64,10 @@ section#header {
 	height: 59px;
 }
 
+/*#header h2 a{
+	color: #333333;
+}
+*/
 section#header {
 	padding-top: 32px;
 }

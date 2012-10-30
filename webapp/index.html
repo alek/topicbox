@@ -40,8 +40,9 @@
 					<a href='#' data-filter="*" onclick=loadTopics()>Topic View</a>
 					<a href='#' data-filter="*" onclick=loadData()>Data View</a>
 					<a href='#' data-filter="*" onClick=window.location.reload()>Configure</a>
+					<p>data source : <span id="selected_dataset">none</span>&nbsp;</p>
 				</div>
-			</div>
+				</div>
 		</section>
 
 		<section id="content">
@@ -53,7 +54,7 @@
 					<section id="select_filter">
 						<div class="row" id="isotope">
 							<figure class="filter filters">
-								<a href="#" onclick=submitLDATask("TWITTER")>
+								<a href="#" onclick=submitLDATask("twitter")>
 									<div class="description">
 										<h3 class="data-source-description">twitter</h3>
 										<p>sample spritzer feed</p>
@@ -61,7 +62,7 @@
 								</div>
 							</figure>
 							<figure class="filter filters">
-								<a href="#" onclick=submitLDATask("SYSLOG")>
+								<a href="#" onclick=submitLDATask("syslog")>
 									<div class="description">
 										<h3 class="data-source-description">syslog</h3>
 										<p>unix messages log stream</p>
@@ -69,7 +70,7 @@
 								</div>
 							</figure>
 							<figure class="filter filters">
-								<a href="#" onclick=submitLDATask("RSS")>
+								<a href="#" onclick=submitLDATask("rss")>
 									<div class="description">
 										<h3 class="data-source-description">rss</h3>
 										<p>random collection of rss feeds</p>
@@ -77,7 +78,7 @@
 								</div>
 							</figure>
 							<figure class="filter filters">
-								<a href="#" onclick=submitLDATask("CUSTOM")>
+								<a href="#" onclick=submitLDATask("custom")>
 									<div class="description">
 										<h3 class="data-source-description">custom</h3>
 										<p>a data source of your own</p>
@@ -95,7 +96,10 @@
 
 		<div id="container">
 		</div>
-		
+
+		<hr>
+        <p class="pull-right"><a href="#">Back to top</a></p>
+
 	</div>
 	
 </body>

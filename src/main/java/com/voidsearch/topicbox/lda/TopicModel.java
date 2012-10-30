@@ -8,7 +8,7 @@ public class TopicModel {
     private static final int MAX_TOPICS = 10;       // max latent topics
     private static final int MAX_KEYWORDS = 25;     // max top keywords per topic
     
-    private ParallelTopicModel topicModel;
+    private LocalParallelTopicModel topicModel;
 
     /**
      * update model from given text corpus
@@ -26,7 +26,7 @@ public class TopicModel {
         int numTopics = MAX_TOPICS;
 
         // create new topic model
-        topicModel = new ParallelTopicModel (numTopics, MalletConfig.alpha.value, MalletConfig.beta.value);
+        topicModel = new LocalParallelTopicModel(numTopics, MalletConfig.alpha.value, MalletConfig.beta.value);
 
         topicModel.setRandomSeed(MalletConfig.randomSeed.value);
 
