@@ -6,8 +6,8 @@ package com.voidsearch.topicbox.lda;
 
 public class TopicModelGenerator extends Thread {
 
-    TopicModel model = new TopicModel();
-    TextCorpus corpus;
+    private TopicModel model = new TopicModel();
+    private TextCorpus corpus;
 
     public void setCorpus(TextCorpus corpus) {
         this.corpus = corpus;
@@ -21,8 +21,12 @@ public class TopicModelGenerator extends Thread {
         }
     }
 
+    public boolean running() {
+        return model.estimationStarted();
+    }
+
     public boolean modelComplete() {
-        return model.hasTopics();
+        return model.modelComplete();
     }
 
     public TopicModel getModel() {

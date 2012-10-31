@@ -18,6 +18,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
+import java.util.List;
 
 public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
 
@@ -248,11 +249,8 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
             TopicModelGenerator modelGenerator = topicModelTaskManager.getGenerator(datasetName);
             TextCorpus corpus = modelGenerator.getCorpus();
 
-            // fake data - testing ui
-            Object[][] data = new Object[10][];
-            for (int i=0; i<10; i++) {
-                data[i] = corpus.getDocs(10).toArray();
-            }
+            // draw docs from training sample - TODO : replace this
+            Object[][] data = modelGenerator.getModel().inferTopics(corpus.getDocs(1000));
 
             String rsp = mapper.writeValueAsString(data);
 
@@ -269,13 +267,20 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
 
             ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.TASK_NAME.toString()+taskName));
 
-            while (!topicModelTaskManager.getGenerator(taskName).modelComplete()) {
-                ctx.getChannel().write(new TextWebSocketFrame("model estimation in progress..."));
+            TopicModelGenerator modelGenerator = topicModelTaskManager.getGenerator(taskName);
+
+            while (!modelGenerator.modelComplete()) {
+                if (modelGenerator.running()) {
+                    ctx.getChannel().write(new TextWebSocketFrame("model estimation in progress... " +
+                            " expected time to complete : "
+                            + modelGenerator.getModel().getExpectedCompletionTime()/1000 + " sec"));
+                } else {
+                    ctx.getChannel().write(new TextWebSocketFrame("initializing model generator ..."));
+                }
                 Thread.sleep(1000);
             }
 
             ctx.getChannel().write(new TextWebSocketFrame("model estimation complete ..."));
-
             ctx.getChannel().close();
 
             return;

@@ -18,7 +18,7 @@ public class TopicModelTest {
             corpus.add("foo baz baz2 classify me test");
             corpus.add("somefoo baz baz2 classify me test waz maz zaz");
 
-            corpus.add(new LocalFileSource<String>(new File("/var/log/launchd-shutdown.log")));
+//            corpus.add(new LocalFileSource<String>(new File("/var/log/launchd-shutdown.log")));
 //            corpus.add(new HttpStreamingSource("http://localhost/foo"));
 
             TopicModel model = new TopicModel();

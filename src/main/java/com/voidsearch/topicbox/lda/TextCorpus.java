@@ -47,10 +47,19 @@ public class TextCorpus extends Csv2Vectors {
     }
 
     public void add(Iterator<String> source) {
-        System.out.println("ADD STREAMING SOURCE !!!");
         while (source.hasNext()) {
             add(source.next());
         }
+    }
+
+    /**
+     * get mallet instance from given text
+     *
+     * @param text
+     * @return
+     */
+    public Instance getInstance(String text) {
+        return defaultPipe.instanceFrom(new Instance(text, "foo", docCounter.getAndIncrement(), null));
     }
 
     /**

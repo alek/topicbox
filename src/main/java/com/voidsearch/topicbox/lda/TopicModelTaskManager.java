@@ -71,26 +71,26 @@ public class TopicModelTaskManager {
         return taskMap.get(taskName).getModel();
     }
 
-    /**
-     * get random model
-     * (for testing)
-     *
-     * @return
-     */
-    public TopicModel getRandomModel() {
-        return getRandomModelGenerator().getModel();
-    }
-
-
-    /**
-     * get a random model generator
-     * (for testing)
-     *
-     * @return
-     */
-    public TopicModelGenerator getRandomModelGenerator() {
-        return taskMap.get(new ArrayList(taskMap.keySet()).get((new Random().nextInt(taskMap.size()))));
-    }
+//    /**
+//     * get random model
+//     * (for testing)
+//     *
+//     * @return
+//     */
+//    public TopicModel getRandomModel() {
+//        return getRandomModelGenerator().getModel();
+//    }
+//
+//
+//    /**
+//     * get a random model generator
+//     * (for testing)
+//     *
+//     * @return
+//     */
+//    public TopicModelGenerator getRandomModelGenerator() {
+//        return taskMap.get(new ArrayList(taskMap.keySet()).get((new Random().nextInt(taskMap.size()))));
+//    }
 
     /**
      * submit lda estimation task
