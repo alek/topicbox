@@ -3,15 +3,19 @@ package com.voidsearch.topicbox.lda;
 import cc.mallet.topics.ParallelTopicModel;
 import cc.mallet.topics.TopicInferencer;
 import cc.mallet.topics.WorkerRunnable;
+import cc.mallet.types.IDSorter;
 import cc.mallet.types.Instance;
 import cc.mallet.types.InstanceList;
 import cc.mallet.util.Randoms;
+import com.sun.org.apache.xalan.internal.xsltc.compiler.util.ObjectType;
 import com.sun.org.apache.xml.internal.utils.ObjectPool;
 import com.voidsearch.topicbox.util.TopicboxUtil;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
+import java.util.TreeSet;
 
 public class TopicModel {
 
@@ -113,8 +117,35 @@ public class TopicModel {
         return (topicModel != null) && (topicModel.numTopics > 0);
     }
 
+    /**
+     * get array of top keywords for each topics along with associated probabilities
+     *
+     * @return
+     */
     public Object[][] getModelTopKeywords() {
-        return topicModel.getTopWords(MAX_KEYWORDS);
+
+        ArrayList<TreeSet<IDSorter>> topicSortedWords = topicModel.getSortedWords();
+        Object[][] result = new Object[numTopics][];
+
+        for (int i=0; i<numTopics; i++) {
+
+            TreeSet<IDSorter> sortedWords = topicSortedWords.get(i);
+
+            int limit = (sortedWords.size() < MAX_KEYWORDS) ? sortedWords.size() : MAX_KEYWORDS;
+            result[i] = new Object[limit][2];
+            int entryCnt = 0;
+
+            for (IDSorter ids : sortedWords) {
+                result[i][entryCnt++] = new Object[] { topicModel.getAlphabet().lookupObject(ids.getID()), ids.getWeight() };
+                if (entryCnt == MAX_KEYWORDS) {
+                    break;
+                }
+            }
+
+        }
+
+        return result;
+        
     }
 
     public boolean modelComplete() {

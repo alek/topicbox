@@ -250,7 +250,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
             TextCorpus corpus = modelGenerator.getCorpus();
 
             // draw docs from training sample - TODO : replace this
-            Object[][] data = modelGenerator.getModel().inferTopics(corpus.getDocs(1000));
+            Object[][] data = modelGenerator.getModel().inferTopics(corpus.getDocs(100));
 
             String rsp = mapper.writeValueAsString(data);
 

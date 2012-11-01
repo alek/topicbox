@@ -67,22 +67,32 @@ public class TopicboxServer {
      *
      * @param args
      */
-    public static void main(String[] args) throws Exception {
+    public static void main(String[] args)  {
 
         Options options = new Options();
         options.addOption("port", true, "topicbox service port");
 
         CommandLineParser parser = new PosixParser();
-        CommandLine line = parser.parse(options, args);
 
-        if (!line.hasOption("port")) {
-            HelpFormatter formatter = new HelpFormatter();
-            formatter.printHelp("topicbox", options);
-            System.exit(1);
-        } else {
-            (new TopicboxServer(Integer.parseInt(line.getOptionValue("port")))).run();
+        try {
+            CommandLine line = parser.parse(options, args);
+            if (!line.hasOption("port")) {
+                printHelpAndExit(options);
+            } else {
+                (new TopicboxServer(Integer.parseInt(line.getOptionValue("port")))).run();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+            printHelpAndExit(options);
         }
-                
+
+
+    }
+    
+    public static void printHelpAndExit(Options options) {
+        HelpFormatter formatter = new HelpFormatter();
+        formatter.printHelp("topicbox", options);
+        System.exit(1);
     }
 
 }

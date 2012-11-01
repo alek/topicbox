@@ -48,9 +48,10 @@ function loadTopics() {
 				var renderContent = "<h3 class=\"data-source-description\">topic." + i + "</h3><div id=\"topic" + i + "\">";
 
 				for (var j=0; j<result[i].length; j++) {
-					renderContent += "<div class=\"element group" + j + "\" data-symbol=\"Li\" data-category=\"alkali\">"
-									+ "<h2 class=\"name\">" + result[i][j] + "</h2>"
-									+ "<p class=\"weight\">6.941</p>"
+					var weight = result[i][j][1];
+					renderContent += "<div class=\"element group" + getGroup(weight, j) + "\" data-symbol=\"Li\" data-category=\"alkali\">"
+									+ "<h2 class=\"name\">" + result[i][j][0] + "</h2>"
+									+ "<p class=\"weight\">" + result[i][j][1] + "</p>"
 									+ "</div>";
 				}
 				
@@ -130,6 +131,19 @@ function getBoxWidth(content) {
 // get entry box height
 function getBoxHeight(content) {
 	return (content.length < 100) ? 80 : 100;
+}
+
+// get topic group corresponding to given weight
+function getGroup(weight, j) {
+	var threshold = [1000, 300, 250, 200, 150, 100, 75, 50, 25];
+	var category = 0;
+	while (weight < threshold[category]) {
+		category++;
+		if (category == threshold.length) {
+			break;
+		}
+	}
+	return category;
 }
 
 // write message 
