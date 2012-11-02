@@ -68,6 +68,35 @@
 }
 */
 
+
+.item {
+	color: #FFFFFF;
+	line-height: 31px;
+}
+
+.item.group0 { color: #FF1A00; font-size: 7.8em; line-height: 81px;}
+.item.group1 { color: #FF1A00; font-size: 7.0em; line-height: 61px;}
+.item.group2 { color: #D15600; font-size: 6.8em; line-height: 51px;}
+.item.group3 { color: #FF7400; font-size: 6.0em; line-height: 41px;}
+.item.group4 { color: #C79810; font-size: 5.8em; line-height: 41px;}
+.item.group5 { color: #73880A; font-size: 5.0em; line-height: 41px;}
+.item.group6 { color: #008C00; font-size: 4.8em; line-height: 41px;}
+.item.group7 { color: #6BBA70; font-size: 4.0em; line-height: 41px;}
+.item.group8 { color: #4096EE; font-size: 3.8em; line-height: 41px;}
+.item.group9 { color: #356AA0; font-size: 3.0em; line-height: 41px;}
+
+.delem.group0 { color: #FFFFFF; background: #FF1A00; font-size: 4.0em; line-height: 81px;}
+.delem.group1 { color: #FFFFFF; background: #FF1A00; font-size: 3.5em; line-height: 61px;}
+.delem.group2 { color: #FFFFFF; background: #D15600; font-size: 3.3em; line-height: 51px;}
+.delem.group3 { color: #FFFFFF; background: #FF7400; font-size: 2.8em; line-height: 41px;}
+.delem.group4 { color: #000000; background: #C79810; font-size: 2.5em; line-height: 41px;}
+.delem.group5 { color: #000000; background: #73880A; font-size: 2.5em; line-height: 41px;}
+.delem.group6 { color: #000000; background: #008C00; font-size: 2.0em; line-height: 41px;}
+.delem.group7 { color: #000000; background: #6BBA70; font-size: 2.0em; line-height: 41px;}
+.delem.group8 { color: #000000; background: #4096EE; font-size: 2.8em; line-height: 41px;}
+.delem.group9 { color: #000000; background: #356AA0; font-size: 2.0em; line-height: 41px;}
+
+
 .element {
   width: 200px;
   height: 50px;

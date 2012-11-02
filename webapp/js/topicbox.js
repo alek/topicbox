@@ -45,22 +45,30 @@ function loadTopics() {
 			var result = $.parseJSON(msg.data);
 			for (var i=0; i<result.length; i++) {
 
-				var renderContent = "<h3 class=\"data-source-description\">topic." + i + "</h3><div id=\"topic" + i + "\">";
+				var renderContent = "<h3 class=\"data-source-description\">topic." + i + "</h3><div id=\"topic" + i + "\" class=\"isotope\">";
 
 				for (var j=0; j<result[i].length; j++) {
+					var name = result[i][j][0];
 					var weight = result[i][j][1];
-					renderContent += "<div class=\"element group" + getGroup(weight, j) + "\" data-symbol=\"Li\" data-category=\"alkali\">"
-									+ "<h2 class=\"name\">" + result[i][j][0] + "</h2>"
-									+ "<p class=\"weight\">" + result[i][j][1] + "</p>"
-									+ "</div>";
+
+					renderContent += "<div><a href=\"#\" class=\"item group" + getGroup(weight, j) + "\">" + name + "</a></div>";
+					
+					// renderContent += "<div class=\"element group" + getGroup(weight, j) + "\" >"
+					// 				+ "<h2 class=\"name\">" + name + "</h2>"
+					// 				+ "<p class=\"weight\">" + result[i][j][1] + "</p>"
+					// 				+ "</div>";
+				
 				}
 				
 				renderContent += "</div>";
+				renderContent += "<hr>";
 				
 				$("#container").append(renderContent);
 				
-				$("#topic." + i).isotope({
-				        itemSelector: '.element'
+				$("#topic" + i).isotope({
+					masonry: {
+						columnWidth: 70
+					}
 				});
 			}
 			
@@ -95,20 +103,26 @@ function loadData() {
 				
 				for (var j=0; j<result[i].length; j++) {
 					
-					renderContent += "<div class=\"element group" + i 
-								+ "\" data-symbol=\"Li\" data-category=\"alkali\" style=\"width:" + getBoxWidth(result[i][j]) +"px;height:" + getBoxHeight(result[i][j]) + "px\">"
-								+ "<p class=\"name\">" + result[i][j] + "</p>"
-								+ "</div>";
+					renderContent += "<div><a href=\"#\" class=\"delem group" + j + "\">" + getDataTextEntry(result[i][j]) + "</a></div>";
+
+					// renderContent += "<div class=\"element group" + i 
+					// 			+ "\" style=\"width:" + getBoxWidth(result[i][j]) +"px;height:" + getBoxHeight(result[i][j]) + "px\">"
+					// 			+ "<p class=\"name\">" + result[i][j] + "</p>"
+					// 			+ "</div>";
 								
 				}
 				
 				renderContent += "</div>";
+				renderContent += "<hr>";
 
 				$("#container").append(renderContent);
-
-				$("#topic." + i).isotope({
-				        itemSelector: '.element'
+				
+				$("#topic" + i).isotope({
+					masonry: {
+						columnWidth: 70
+					}
 				});
+				
 				
 			}
 			
@@ -133,9 +147,14 @@ function getBoxHeight(content) {
 	return (content.length < 100) ? 80 : 100;
 }
 
+// return (trimmed) data panel entry
+function getDataTextEntry(content) {
+	return (content < 64) ? content : content.substr(0, 64) + " ...";
+}
+
 // get topic group corresponding to given weight
 function getGroup(weight, j) {
-	var threshold = [1000, 300, 250, 200, 150, 100, 75, 50, 25];
+	var threshold = [1000, 300, 250, 200, 150, 100, 75];
 	var category = 0;
 	while (weight < threshold[category]) {
 		category++;
