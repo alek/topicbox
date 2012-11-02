@@ -123,15 +123,6 @@
             <groupId>cc.mallet</groupId>
             <artifactId>mallet</artifactId>
             <version>2.0.7</version>
-            <scope>system</scope>
-            <systemPath>/Data/opensource/mallet/target/mallet-2.0.8-SNAPSHOT.jar</systemPath>
-        </dependency>
-        <dependency>
-            <groupId>trove</groupId>
-            <artifactId>trove</artifactId>
-            <version>2.0.2</version>
-            <scope>system</scope>
-            <systemPath>/Data/opensource/mallet/lib/trove-2.0.2.jar</systemPath>
         </dependency>
         <dependency>
             <groupId>commons-configuration</groupId>
