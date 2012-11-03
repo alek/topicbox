@@ -1,21 +1,33 @@
 var WEBSOCKET_ENDPOINT = "ws://localhost:1981/ws/";
 var TOPIC_RENAME_POST_URI  = "http://localhost:1981/renameTopic";
 
+// get topicbox websocket 
+function getWebsocket() {
+	return new WebSocket(WEBSOCKET_ENDPOINT);
+}
+
+// send json data to given websocket
+function sendRequest(socket, data) {
+	socket.send(JSON.stringify(data));
+}
+
 //
 // submit data source for lda model estimation
 //
 function submitLDATask(task) {
 	clearCanvas();
 	try {
-		var socket = new WebSocket(WEBSOCKET_ENDPOINT);
+		var socket = getWebsocket();
 		socket.onopen = function() {
-			socket.send("SUBMIT_LDA_TASK:" + task);
+			sendRequest(socket, {
+				request : "SUBMIT_LDA_TASK",
+				taskName : task
+			});
 			message("submitted task : <h1>" + task + "</h1>")
 		}
 		socket.onmessage = function(msg) {
 			if (msg.data.indexOf("TASK_NAME") == 0) {
-				$("#selected_dataset").empty();
-				$("#selected_dataset").append(msg.data.substring("TASK_NAME".length));
+				setSelectedDataset(msg.data.substring("TASK_NAME".length));
 			} else {
 				message(msg.data);
 			}
@@ -35,10 +47,12 @@ function loadTopics() {
 	clearCanvas();
 	message("<h5>loading topics ...</h5>");
 	try {
-		var socket = new WebSocket(WEBSOCKET_ENDPOINT);
-		var selected_dataset = $("#selected_dataset").text();
+		var socket = getWebsocket();
 		socket.onopen = function() {
-			socket.send("LOAD_TOPICS:" + selected_dataset);
+			sendRequest(socket, {
+				request : "LOAD_TOPICS",
+				dataset : getSelectedDataset()
+			});
 		}
 		socket.onmessage = function(msg) {
 			clearCanvas();
@@ -48,12 +62,20 @@ function loadTopics() {
 			}
 			var result = $.parseJSON(msg.data);
 			for (var i=0; i<result.length; i++) {
-				var renderContent = "<h3 class=\"data-source-description topic" + i + "\" id=\"topic_title_" + i + "\">topic." + i + "</h3><div id=\"topic" + i + "\" class=\"isotope\">";
+				
+				var renderContent = "<h3 class=\"data-source-description topic" 
+										+ i + "\" id=\"topic_title_" + i + "\">topic." 
+										+ i + "</h3><div id=\"topic" + i + "\" class=\"isotope\">";
 
 				for (var j=0; j<result[i].length; j++) {
+					
 					var name = result[i][j][0];
 					var weight = result[i][j][1];
-					renderContent += "<div><a href=\"#\" class=\"item group" + getGroup(weight, j) + "\">" + name + "</a></div>";
+					
+					renderContent += "<div><a href=\"#\" class=\"item group" 
+											+ getGroup(weight, j) 
+											+ "\" onclick=loadKeywordDescription(\"" + name + "\")>" 
+											+ name + "</a></div>";
 				}
 				
 				renderContent += "</div>";
@@ -61,7 +83,7 @@ function loadTopics() {
 				
 				$("#container").append(renderContent);
 				
-				$('.topic' + i).editable(TOPIC_RENAME_POST_URI + "/" + selected_dataset, {
+				$('.topic' + i).editable(TOPIC_RENAME_POST_URI + "/" + getSelectedDataset(), {
 					indicator : 'updating...'
 				});
 				
@@ -85,9 +107,13 @@ function loadData() {
 	clearCanvas();
 	message("loading data ...");
 	try {
-		var socket = new WebSocket(WEBSOCKET_ENDPOINT);
+		var socket = getWebsocket();
 		socket.onopen = function() {
-			socket.send("LOAD_DATA:" + $("#selected_dataset").text() + ";NUM_ENTRIES:500");
+			sendRequest(socket, {
+				request : "LOAD_DATA",
+				dataset : getSelectedDataset(),
+				numEntries : 500
+			});
 		}
 		socket.onmessage = function(msg) {
 			clearCanvas();
@@ -95,13 +121,16 @@ function loadData() {
 				renderNoDataAvailable();
 				return;
 			}
+			
 			var result = $.parseJSON(msg.data);
 
 			for (var i=0; i<result.length; i++) {
-				var renderContent = "<h3 class=\"data-source-description\">topic." + i + "</h3><div id=\"topic" + i + "\">";
+				var renderContent = "<h3 class=\"data-source-description\">topic." 
+									+ i + "</h3><div id=\"topic" + i + "\">";
 				
 				for (var j=0; j<result[i].length; j++) {
-					renderContent += "<div><a href=\"#\" class=\"delem group" + j + "\">" + getDataTextEntry(result[i][j]) + "</a></div>";
+					renderContent += "<div><a href=\"#\" class=\"delem group"
+					 				+ j + "\">" + getDataTextEntry(result[i][j]) + "</a></div>";
 				}
 				
 				renderContent += "</div>";
@@ -121,6 +150,34 @@ function loadData() {
 		}
 	} catch (exception) {
 		message("error loading topics ...")
+	}
+}
+
+// 
+// load model description on given keyword
+//
+function loadKeywordDescription(keywordName) {
+	clearCanvas();
+	message("<h2>" + keywordName + "</h2>");
+	try {
+		var socket = getWebsocket();
+		socket.onopen = function() {
+			sendRequest(socket, {
+				request : "DESCRIBE_KEYWORD",
+				keyword : keywordName,
+				dataset : getSelectedDataset()
+			});
+		}
+		socket.onmessage = function(msg) {
+			var result = $.parseJSON(msg.data);
+			topicEntries = result["topicEntries"];
+			for (entry in topicEntries) {
+				var entryData = topicEntries[entry];
+				message("topic : " + entryData[0] + " | weight : " + entryData[1]["weight"]);
+			}
+		}
+	} catch (exception) {
+		message("error retrieving description for keyword : " + keywordName);
 	}
 }
 
@@ -155,6 +212,17 @@ function getGroup(weight, j) {
 		}
 	}
 	return category;
+}
+
+// set active dataset
+function setSelectedDataset(dataset) {
+	$("#selected_dataset").empty();
+	$("#selected_dataset").append(dataset);
+}
+
+// get active dataset
+function getSelectedDataset() {
+	return $("#selected_dataset").text();
 }
 
 // write message 

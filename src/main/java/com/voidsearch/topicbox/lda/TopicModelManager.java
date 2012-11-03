@@ -5,28 +5,26 @@ import com.voidsearch.topicbox.source.TopicboxDataSourceFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * TopicModelTaskManager
+ * TopicModelManager
  *
  * manage retrieval & submission of task estimation tasks
  *
  */
 
-public class TopicModelTaskManager {
+public class TopicModelManager {
 
     private static final Logger logger = LoggerFactory.getLogger(TopicboxServer.class.getName());
 
-    Map<String, TopicModelGenerator> taskMap = new ConcurrentHashMap<String, TopicModelGenerator>();
+    Map<String, TopicModel> taskMap = new ConcurrentHashMap<String, TopicModel>();
 
-    private TopicModelTaskManager() {}
+    private TopicModelManager() {}
 
     private static class TopicModelTaskManagerHolder {
-        public static final TopicModelTaskManager INSTANCE = new TopicModelTaskManager();
+        public static final TopicModelManager INSTANCE = new TopicModelManager();
     }
 
     /**
@@ -34,17 +32,17 @@ public class TopicModelTaskManager {
      *
      * @return
      */
-    public static TopicModelTaskManager getInstance() {
+    public static TopicModelManager getInstance() {
         return TopicModelTaskManagerHolder.INSTANCE;
     }
 
     /**
-     * get model generator corresponding to given task
+     * get model corresponding to given task
      *
      * @param taskName
      * @return
      */
-    public TopicModelGenerator getGenerator(String taskName) {
+    public TopicModel getModel(String taskName) {
         return taskMap.get(taskName);
     }
 
@@ -62,19 +60,6 @@ public class TopicModelTaskManager {
     }
 
     /**
-     * get model corresponding to given task
-     *
-     * @param taskName
-     * @return
-     */
-    public TopicModel getModel(String taskName) {
-        return taskMap.get(taskName).getModel();
-    }
-
-    public void updateTopicName(String dataset, String topicName, int topicNumber) {
-    }
-    
-    /**
      * submit lda estimation task
      *
      * @param taskName
@@ -87,10 +72,9 @@ public class TopicModelTaskManager {
 
         if (!taskMap.containsKey(taskName)) {
             try {
-                TopicModelGenerator generator = new TopicModelGenerator();
-                generator.setCorpus(TopicboxDataSourceFactory.getData(taskName));
-                generator.start();
-                taskMap.put(taskName, generator);
+                TopicModel model = new TopicModel();
+                model.queueUpdate(TopicboxDataSourceFactory.getData(taskName));
+                taskMap.put(taskName, model);
             } catch (Exception e) {
                 e.printStackTrace();
                 logger.error("error submitting task : " + taskName);

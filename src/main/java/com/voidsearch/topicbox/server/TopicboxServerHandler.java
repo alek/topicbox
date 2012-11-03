@@ -2,9 +2,9 @@ package com.voidsearch.topicbox.server;
 
 import com.voidsearch.topicbox.lda.TextCorpus;
 import com.voidsearch.topicbox.lda.TopicModel;
-import com.voidsearch.topicbox.lda.TopicModelGenerator;
-import com.voidsearch.topicbox.lda.TopicModelTaskManager;
+import com.voidsearch.topicbox.lda.TopicModelManager;
 import com.voidsearch.topicbox.util.TopicboxUtil;
+import org.codehaus.jackson.JsonNode;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
@@ -35,13 +35,15 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
 
     private boolean readingChunks;
 
-    private TopicModelTaskManager topicModelTaskManager = TopicModelTaskManager.getInstance();
+    private TopicModelManager topicModelManager = TopicModelManager.getInstance();
 
     public enum WebsocketRequests {
         LOAD_TOPICS,                    // load available topics for given model
         LOAD_DATA,                      // load data samples for given model
         NUM_ENTRIES,                    // number of data entries to be rendered
-        SUBMIT_LDA_TASK                 // submit data for model estimation
+        SUBMIT_LDA_TASK,                // submit data for model estimation
+        DESCRIBE_TOPIC,                 // return topic description
+        DESCRIBE_KEYWORD                // return keyword description
     }
 
     public enum WebsocketResponses {
@@ -98,7 +100,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
      */
     private void handleHttpStaticFileGET(ChannelHandlerContext ctx, HttpRequest req, MessageEvent e) {
 
-        if (logger.isInfoEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.info("got query :  " + req.getUri());
         }
 
@@ -139,10 +141,8 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
 
         } catch (FileNotFoundException ex) {
             sendError(ctx, HttpResponseStatus.NOT_FOUND);
-            return;
         } catch (IOException ex) {
             sendError(ctx, HttpResponseStatus.BAD_REQUEST);
-            return;
         }
 
     }
@@ -153,7 +153,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
      * @param f - file descriptor
      * @return
      */
-    public String getContentType(File f) {
+    private String getContentType(File f) {
         if (f.getName().endsWith(".css")) {
             return "text/css";
         } else {
@@ -182,7 +182,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
     }
 
     /**
-     * handle regular get query
+     * handle http GET request
      * 
      * @param ctx
      * @param req
@@ -191,8 +191,15 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
     private void handleHttpGET(ChannelHandlerContext ctx, HttpRequest req, MessageEvent e) {
         HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
         ctx.getChannel().write(response).addListener(ChannelFutureListener.CLOSE);
-    } 
-    
+    }
+
+    /**
+     * handle http POST request
+     *
+     * @param ctx
+     * @param req
+     * @param e
+     */
     private void handleHttpPOST(ChannelHandlerContext ctx, HttpRequest req, MessageEvent e) {
 
         HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
@@ -215,7 +222,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
                         if (params.containsKey("id")) {
                             String value = params.get("id");
                             int topicNumber = Integer.parseInt(value.substring(value.lastIndexOf("_")+1));
-                            topicModelTaskManager.updateTopicName(dataset, params.get("value"), topicNumber);
+                            topicModelManager.getModel(dataset).updateTopicName(topicNumber,params.get("value"));
                         }
 
                         response.setContent(ChannelBuffers.copiedBuffer(params.get("value"), CharsetUtil.UTF_8));
@@ -256,93 +263,170 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
             throw new UnsupportedOperationException(String.format("%s frame types not supported", frame.getClass().getName()));
         }
 
-        String request = ((TextWebSocketFrame)frame).getText();
+        JsonNode request =  mapper.readTree(((TextWebSocketFrame)frame).getText());
 
-        if (logger.isInfoEnabled()) {
+        if (logger.isDebugEnabled()) {
             logger.info(String.format("request: %s", request));
         }
 
-        if (request.startsWith(WebsocketRequests.LOAD_TOPICS.toString())) {
-            
-            String datasetName = request.substring(WebsocketRequests.LOAD_TOPICS.toString().length() + 1);
-
-            if (topicModelTaskManager.getModelCount() == 0 || !topicModelTaskManager.containsModel(datasetName)) {
-                ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.MODEL_NOT_AVAILABLE.toString()));
-                return;
-            }
-
-            TopicModel model = topicModelTaskManager.getModel(datasetName);
-            Object[][] topKeywords = model.getModelTopKeywords();
-
-            String rsp = mapper.writeValueAsString(topKeywords);
-
-            ctx.getChannel().write(new TextWebSocketFrame(rsp));
-            ctx.getChannel().close();
-
-            return;
-
-        } else if (request.startsWith(WebsocketRequests.LOAD_DATA.toString())) {
-
-            String datasetName = request.substring(
-                    WebsocketRequests.LOAD_DATA.toString().length() + 1,
-                    request.indexOf(";")).trim();
-
-            int numEntries = Integer.parseInt(request.substring(
-                    request.indexOf(";") + WebsocketRequests.NUM_ENTRIES.toString().length() + 2));
-
-            if (topicModelTaskManager.getModelCount() == 0 || !topicModelTaskManager.containsModel(datasetName)) {
-                ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.MODEL_NOT_AVAILABLE.toString()));
-                ctx.getChannel().close();
-                return;
-            }
-
-            TopicModelGenerator modelGenerator = topicModelTaskManager.getGenerator(datasetName);
-            TextCorpus corpus = modelGenerator.getCorpus();
-
-            String rsp;
-
-            if (modelGenerator.getModel().inferencerReady()) {
-                // draw docs from training sample - TODO : replace this
-                Object[][] data = modelGenerator.getModel().inferTopics(corpus.getDocs(numEntries));
-                rsp = mapper.writeValueAsString(data);
-            } else {
-                rsp = "model inferencer not ready";
-            }
-
-            ctx.getChannel().write(new TextWebSocketFrame(rsp));
-            ctx.getChannel().close();
-
-            return;
-
-        } else if (request.startsWith(WebsocketRequests.SUBMIT_LDA_TASK.toString())) {
-
-            String taskName = request.split(":")[1];
-
-            topicModelTaskManager.submitTask(taskName);
-
-            ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.TASK_NAME.toString()+taskName));
-
-            TopicModelGenerator modelGenerator = topicModelTaskManager.getGenerator(taskName);
-
-            while (!modelGenerator.modelComplete()) {
-                if (modelGenerator.running()) {
-                    ctx.getChannel().write(new TextWebSocketFrame("model estimation in progress... " +
-                            " expected time to complete : "
-                            + modelGenerator.getModel().getExpectedCompletionTime()/1000 + " sec"));
-                } else {
-                    ctx.getChannel().write(new TextWebSocketFrame("initializing model generator ..."));
-                }
-                Thread.sleep(1000);
-            }
-
-            ctx.getChannel().write(new TextWebSocketFrame("model estimation complete ..."));
-            ctx.getChannel().close();
-
-            return;
-
+        if (requestMatch(request, WebsocketRequests.LOAD_TOPICS)) {
+            handleLoadTopicRequest(ctx, request);
+        } else if (requestMatch(request, WebsocketRequests.LOAD_DATA)) {
+            handleLoadDataRequest(ctx, request);
+        } else if (requestMatch(request, WebsocketRequests.SUBMIT_LDA_TASK)) {
+            submitLDARequest(ctx, request);
+        } else if (requestMatch(request, WebsocketRequests.DESCRIBE_TOPIC)) {
+            handleDescribeTopicRequest(ctx, request);
+        } else if (requestMatch(request, WebsocketRequests.DESCRIBE_KEYWORD)) {
+            handleDescribeKeywordRequest(ctx, request);
         }
 
-        ctx.getChannel().write(new TextWebSocketFrame(request.toUpperCase()));
+    }
+
+    /**
+     * check whether query matches appropriate request type
+     *
+     * @param request
+     * @param requestType
+     * @return
+     */
+    private boolean requestMatch(JsonNode request, WebsocketRequests requestType) {
+        return request.get("request").asText().startsWith(requestType.toString());
+    }
+
+    /**
+     * load topic data request
+     *
+     * @param ctx
+     * @param request
+     * @throws Exception
+     */
+    private void handleLoadTopicRequest(ChannelHandlerContext ctx, JsonNode request) throws Exception {
+
+        String datasetName = request.get("dataset").asText();
+
+        if (topicModelManager.getModelCount() == 0 || !topicModelManager.containsModel(datasetName)) {
+            ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.MODEL_NOT_AVAILABLE.toString()));
+            return;
+        }
+
+        TopicModel model = topicModelManager.getModel(datasetName);
+        Object[][] topKeywords = model.getModelTopKeywords();
+
+        String rsp = mapper.writeValueAsString(topKeywords);
+
+        ctx.getChannel().write(new TextWebSocketFrame(rsp));
+        ctx.getChannel().close();
+
+    }
+
+    /**
+     * load data classification request
+     *
+     * @param ctx
+     * @param request
+     * @throws Exception
+     */
+    private void handleLoadDataRequest(ChannelHandlerContext ctx, JsonNode request) throws Exception {
+
+        String datasetName = request.get("dataset").asText();
+        int numEntries = request.get("numEntries").asInt();
+
+        if (topicModelManager.getModelCount() == 0 || !topicModelManager.containsModel(datasetName)) {
+            ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.MODEL_NOT_AVAILABLE.toString()));
+            ctx.getChannel().close();
+            return;
+        }
+
+        TopicModel model = topicModelManager.getModel(datasetName);
+        TextCorpus corpus = model.getCorpus();
+
+        String rsp;
+
+        if (model.ready()) {
+            // draw docs from training sample - TODO : replace this
+            Object[][] data = model.inferTopics(corpus.getDocs(numEntries));
+            rsp = mapper.writeValueAsString(data);
+        } else {
+            rsp = "model inferencer not ready";
+        }
+
+        ctx.getChannel().write(new TextWebSocketFrame(rsp));
+        ctx.getChannel().close();
+
+    }
+
+    /**
+     * submit dataset for lda estimation
+     *
+     * @param ctx
+     * @param request
+     * @throws Exception
+     */
+    private void submitLDARequest(ChannelHandlerContext ctx, JsonNode request) throws Exception {
+
+        String taskName = request.get("taskName").asText();
+
+        topicModelManager.submitTask(taskName);
+
+        ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.TASK_NAME.toString()+taskName));
+
+        TopicModel model = topicModelManager.getModel(taskName);
+
+        while (!model.ready()) {
+            if (model.estimationStarted()) {
+                ctx.getChannel().write(new TextWebSocketFrame("model estimation in progress... " +
+                        " expected time to complete : "
+                        + model.getExpectedCompletionTime()/1000 + " sec"));
+            } else {
+                ctx.getChannel().write(new TextWebSocketFrame("initializing model generator ..."));
+            }
+            Thread.sleep(1000);
+        }
+
+        ctx.getChannel().write(new TextWebSocketFrame("model estimation complete ..."));
+        ctx.getChannel().close();
+
+    }
+
+    /**
+     * get topic details
+     *
+     * @param ctx
+     * @param request
+     * @throws Exception
+     */
+    private void handleDescribeTopicRequest(ChannelHandlerContext ctx, JsonNode request) throws Exception {
+
+        int topicNumber = request.get("topicNumber").asInt();
+        String dataset = request.get("dataset").asText();
+
+        TopicModel model = topicModelManager.getModel(dataset);
+        String rsp = mapper.writeValueAsString(model.getTopicInfo(topicNumber));
+
+        ctx.getChannel().write(new TextWebSocketFrame(rsp));
+        ctx.getChannel().close();
+
+    }
+
+    /**
+     * get keyword details
+     *
+     * @param ctx
+     * @param request
+     * @throws Exception
+     */
+    private void handleDescribeKeywordRequest(ChannelHandlerContext ctx, JsonNode request) throws Exception {
+
+        String keyword = request.get("keyword").asText();
+        String dataset = request.get("dataset").asText();
+
+        TopicModel model = topicModelManager.getModel(dataset);
+        String rsp = mapper.writeValueAsString(model.getKeywordInfo(keyword));
+
+        ctx.getChannel().write(new TextWebSocketFrame(rsp));
+        ctx.getChannel().close();
+
     }
 
     /**

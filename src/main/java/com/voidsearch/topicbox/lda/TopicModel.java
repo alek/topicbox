@@ -7,15 +7,10 @@ import cc.mallet.types.IDSorter;
 import cc.mallet.types.Instance;
 import cc.mallet.types.InstanceList;
 import cc.mallet.util.Randoms;
-import com.sun.org.apache.xalan.internal.xsltc.compiler.util.ObjectType;
-import com.sun.org.apache.xml.internal.utils.ObjectPool;
 import com.voidsearch.topicbox.util.TopicboxUtil;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.TreeSet;
+import java.util.*;
 
 public class TopicModel {
 
@@ -27,6 +22,15 @@ public class TopicModel {
     private TextCorpus trainingCorpus;
     private SimpleTopicModel topicModel;
     private TopicInferencer inferencer;
+    
+    private String[] topicNames;
+
+    public void queueUpdate(TextCorpus corpus) throws Exception {
+        TopicModelGenerator generator = new TopicModelGenerator();
+        generator.setCorpus(corpus);
+        generator.setModel(this);
+        generator.start();
+    }
 
     /**
      * update model from given text corpus
@@ -61,12 +65,18 @@ public class TopicModel {
         topicModel.setNumThreads(MalletConfig.numThreads.value);
 
         topicModel.estimate();
+        
+        topicNames = new String[numTopics];
 
         inferencer = topicModel.getInferencer();
 
     }
 
-    public boolean inferencerReady() {
+    public TextCorpus getCorpus() {
+        return trainingCorpus;
+    }
+
+    public boolean ready() {
         return inferencer != null;
     }
 
@@ -154,16 +164,79 @@ public class TopicModel {
         
     }
 
+    /**
+     * get model information regarding given keyword
+     *
+     * @param keyword
+     * @return
+     */
+    public Map getKeywordInfo(String keyword) {
+
+        Map<String, Object> result = new HashMap<String, Object>();
+        List topicEntries = new ArrayList();
+        
+        ArrayList<TreeSet<IDSorter>> topicSortedWords = topicModel.getSortedWords();
+        
+        for (int i=0; i<numTopics; i++) {
+            TreeSet<IDSorter> sortedWords = topicSortedWords.get(i);
+            for (IDSorter ids : sortedWords) {
+                String entry = topicModel.getAlphabet().lookupObject(ids.getID()).toString();
+                if (keyword.equals(entry)) {
+                    topicEntries.add(new Object[] {i, ids});
+                }
+            }
+        }
+
+        result.put("topicEntries", topicEntries);
+        return result;
+    }
+
+    /**
+     * get model information regarding given topic
+     *
+     * @param topicNumber
+     * @return
+     */
+    public Map getTopicInfo(int topicNumber) {
+        return null;
+    }
+
+    /**
+     * check whether model estimation is complete
+     *
+     * @return
+     */
     public boolean modelComplete() {
         return topicModel != null && topicModel.estimationComplete();
     }
 
+
+    /**
+     * get expected time-to-completion for model estimation
+     *
+     * @return
+     */
     public long getExpectedCompletionTime() {
         return topicModel.getExpectedCompleteTime();
     }
 
+    /**
+     * check whether estimation process for given model had started
+     *
+     * @return
+     */
     public boolean estimationStarted() {
         return topicModel != null && topicModel.estimationStarted();
+    }
+
+    /**
+     * update topic name
+     *
+     * @param topicNumber
+     * @param name
+     */
+    public void updateTopicName(int topicNumber, String name) {
+        topicNames[topicNumber] = name;
     }
 
     /**
@@ -256,6 +329,32 @@ public class TopicModel {
 
             estimationComplete = true;
 
+        }
+
+    }
+
+    /**
+     * simple model-updating thread
+     */
+    private class TopicModelGenerator extends Thread {
+
+        private TopicModel model;
+        private TextCorpus corpus;
+
+        public void setModel(TopicModel model) {
+            this.model = model;
+        }
+        
+        public void setCorpus(TextCorpus corpus) {
+            this.corpus = corpus;
+        }
+
+        public void run() {
+            try {
+                model.update(corpus);
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
         }
 
     }
