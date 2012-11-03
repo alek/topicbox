@@ -1,10 +1,13 @@
+var WEBSOCKET_ENDPOINT = "ws://localhost:1981/ws/";
+var TOPIC_RENAME_POST_URI  = "http://localhost:1981/renameTopic";
+
 //
 // submit data source for lda model estimation
 //
 function submitLDATask(task) {
 	clearCanvas();
 	try {
-		var socket = new WebSocket("ws://localhost:1981/ws/");
+		var socket = new WebSocket(WEBSOCKET_ENDPOINT);
 		socket.onopen = function() {
 			socket.send("SUBMIT_LDA_TASK:" + task);
 			message("submitted task : <h1>" + task + "</h1>")
@@ -32,9 +35,10 @@ function loadTopics() {
 	clearCanvas();
 	message("<h5>loading topics ...</h5>");
 	try {
-		var socket = new WebSocket("ws://localhost:1981/ws/");
+		var socket = new WebSocket(WEBSOCKET_ENDPOINT);
+		var selected_dataset = $("#selected_dataset").text();
 		socket.onopen = function() {
-			socket.send("LOAD_TOPICS:" + $("#selected_dataset").text());
+			socket.send("LOAD_TOPICS:" + selected_dataset);
 		}
 		socket.onmessage = function(msg) {
 			clearCanvas();
@@ -44,26 +48,22 @@ function loadTopics() {
 			}
 			var result = $.parseJSON(msg.data);
 			for (var i=0; i<result.length; i++) {
-
-				var renderContent = "<h3 class=\"data-source-description\">topic." + i + "</h3><div id=\"topic" + i + "\" class=\"isotope\">";
+				var renderContent = "<h3 class=\"data-source-description topic" + i + "\" id=\"topic_title_" + i + "\">topic." + i + "</h3><div id=\"topic" + i + "\" class=\"isotope\">";
 
 				for (var j=0; j<result[i].length; j++) {
 					var name = result[i][j][0];
 					var weight = result[i][j][1];
-
 					renderContent += "<div><a href=\"#\" class=\"item group" + getGroup(weight, j) + "\">" + name + "</a></div>";
-					
-					// renderContent += "<div class=\"element group" + getGroup(weight, j) + "\" >"
-					// 				+ "<h2 class=\"name\">" + name + "</h2>"
-					// 				+ "<p class=\"weight\">" + result[i][j][1] + "</p>"
-					// 				+ "</div>";
-				
 				}
 				
 				renderContent += "</div>";
 				renderContent += "<hr>";
 				
 				$("#container").append(renderContent);
+				
+				$('.topic' + i).editable(TOPIC_RENAME_POST_URI + "/" + selected_dataset, {
+					indicator : 'updating...'
+				});
 				
 				$("#topic" + i).isotope({
 					masonry: {
@@ -85,9 +85,9 @@ function loadData() {
 	clearCanvas();
 	message("loading data ...");
 	try {
-		var socket = new WebSocket("ws://localhost:1981/ws/");
+		var socket = new WebSocket(WEBSOCKET_ENDPOINT);
 		socket.onopen = function() {
-			socket.send("LOAD_DATA:" + $("#selected_dataset").text());
+			socket.send("LOAD_DATA:" + $("#selected_dataset").text() + ";NUM_ENTRIES:500");
 		}
 		socket.onmessage = function(msg) {
 			clearCanvas();
@@ -98,18 +98,10 @@ function loadData() {
 			var result = $.parseJSON(msg.data);
 
 			for (var i=0; i<result.length; i++) {
-
 				var renderContent = "<h3 class=\"data-source-description\">topic." + i + "</h3><div id=\"topic" + i + "\">";
 				
 				for (var j=0; j<result[i].length; j++) {
-					
 					renderContent += "<div><a href=\"#\" class=\"delem group" + j + "\">" + getDataTextEntry(result[i][j]) + "</a></div>";
-
-					// renderContent += "<div class=\"element group" + i 
-					// 			+ "\" style=\"width:" + getBoxWidth(result[i][j]) +"px;height:" + getBoxHeight(result[i][j]) + "px\">"
-					// 			+ "<p class=\"name\">" + result[i][j] + "</p>"
-					// 			+ "</div>";
-								
 				}
 				
 				renderContent += "</div>";

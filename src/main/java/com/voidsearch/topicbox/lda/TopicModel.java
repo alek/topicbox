@@ -19,7 +19,7 @@ import java.util.TreeSet;
 
 public class TopicModel {
 
-    private static final int MAX_TOPICS = 10;       // max latent topics
+    private static final int MAX_TOPICS = 50;       // max latent topics
     private static final int MAX_KEYWORDS = 25;     // max top keywords per topic
     private static final int INFERENCER_ITERATIONS = 5;
 
@@ -66,6 +66,10 @@ public class TopicModel {
 
     }
 
+    public boolean inferencerReady() {
+        return inferencer != null;
+    }
+
     /**
      * get maximum likelihood topic corresponding to given text
      *
@@ -104,7 +108,9 @@ public class TopicModel {
 
         Object[][] result = new Object[numTopics][];
         for (int i=0; i<numTopics; i++) {
-            result[i] = topics[i].toArray();
+            if (topics[i] != null) {
+                result[i] = topics[i].toArray();
+            }
         }
 
         return result;

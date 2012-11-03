@@ -4,7 +4,9 @@ import com.voidsearch.topicbox.lda.TextCorpus;
 import com.voidsearch.topicbox.lda.TopicModel;
 import com.voidsearch.topicbox.lda.TopicModelGenerator;
 import com.voidsearch.topicbox.lda.TopicModelTaskManager;
+import com.voidsearch.topicbox.util.TopicboxUtil;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBuffers;
 import org.jboss.netty.channel.*;
 import org.jboss.netty.handler.codec.http.*;
@@ -18,7 +20,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.RandomAccessFile;
-import java.util.List;
+import java.util.Map;
 
 public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
 
@@ -31,11 +33,14 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
     private WebSocketServerHandshaker handshaker;
     private ObjectMapper mapper = new ObjectMapper();
 
+    private boolean readingChunks;
+
     private TopicModelTaskManager topicModelTaskManager = TopicModelTaskManager.getInstance();
 
     public enum WebsocketRequests {
         LOAD_TOPICS,                    // load available topics for given model
         LOAD_DATA,                      // load data samples for given model
+        NUM_ENTRIES,                    // number of data entries to be rendered
         SUBMIT_LDA_TASK                 // submit data for model estimation
     }
 
@@ -189,7 +194,46 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
     } 
     
     private void handleHttpPOST(ChannelHandlerContext ctx, HttpRequest req, MessageEvent e) {
-        // TBD
+
+        HttpResponse response = new DefaultHttpResponse(HttpVersion.HTTP_1_1, HttpResponseStatus.OK);
+        String uri = req.getUri();
+
+        if (!readingChunks) {
+
+            if (req.isChunked()) {
+                readingChunks = true;
+            } else {
+                ChannelBuffer content = req.getContent();
+                if (content.readable()) {
+
+                    // handle topic rename query
+                    if(uri.startsWith("/renameTopic")) {
+
+                        String dataset = uri.substring(uri.lastIndexOf("/") + 1);
+                        Map<String, String> params = TopicboxUtil.unpackQueryParams(content.toString(CharsetUtil.UTF_8));
+                        
+                        if (params.containsKey("id")) {
+                            String value = params.get("id");
+                            int topicNumber = Integer.parseInt(value.substring(value.lastIndexOf("_")+1));
+                            topicModelTaskManager.updateTopicName(dataset, params.get("value"), topicNumber);
+                        }
+
+                        response.setContent(ChannelBuffers.copiedBuffer(params.get("value"), CharsetUtil.UTF_8));
+                    }
+                }
+            }
+
+        } else {
+            HttpChunk chunk = (HttpChunk)e.getMessage();
+            if (chunk.isLast()) {
+                readingChunks = false;
+            }
+            // ignore chunked content for now (TODO : implement this)
+        }
+
+        ctx.getChannel().write(response).addListener(ChannelFutureListener.CLOSE);
+
+
     }
 
     /**
@@ -239,20 +283,31 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
 
         } else if (request.startsWith(WebsocketRequests.LOAD_DATA.toString())) {
 
-            String datasetName = request.substring(WebsocketRequests.LOAD_DATA.toString().length() + 1);
+            String datasetName = request.substring(
+                    WebsocketRequests.LOAD_DATA.toString().length() + 1,
+                    request.indexOf(";")).trim();
+
+            int numEntries = Integer.parseInt(request.substring(
+                    request.indexOf(";") + WebsocketRequests.NUM_ENTRIES.toString().length() + 2));
 
             if (topicModelTaskManager.getModelCount() == 0 || !topicModelTaskManager.containsModel(datasetName)) {
                 ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.MODEL_NOT_AVAILABLE.toString()));
+                ctx.getChannel().close();
                 return;
             }
 
             TopicModelGenerator modelGenerator = topicModelTaskManager.getGenerator(datasetName);
             TextCorpus corpus = modelGenerator.getCorpus();
 
-            // draw docs from training sample - TODO : replace this
-            Object[][] data = modelGenerator.getModel().inferTopics(corpus.getDocs(100));
+            String rsp;
 
-            String rsp = mapper.writeValueAsString(data);
+            if (modelGenerator.getModel().inferencerReady()) {
+                // draw docs from training sample - TODO : replace this
+                Object[][] data = modelGenerator.getModel().inferTopics(corpus.getDocs(numEntries));
+                rsp = mapper.writeValueAsString(data);
+            } else {
+                rsp = "model inferencer not ready";
+            }
 
             ctx.getChannel().write(new TextWebSocketFrame(rsp));
             ctx.getChannel().close();

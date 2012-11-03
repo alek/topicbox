@@ -26,7 +26,7 @@ public class TopicboxDataSourceFactory {
             case TWITTER:
                 //corpus.add(new HttpStreamingSource<String>("http://stream.twitter.com/1/statuses/sample.json?delimited=length"));
                 //corpus.add(new HttpStreamingSource<String>("http://localhost/foo"));
-                corpus.add(new LocalFileSource<String>(new File("/tmp/foo")));
+                corpus.add(new LocalFileSource<String>(new File("/tmp/foo2")));
                 break;
             case SYSLOG:
                 corpus.add(new LocalFileSource<String>(new File("/var/log/launchd-shutdown.log")));
@@ -35,7 +35,8 @@ public class TopicboxDataSourceFactory {
                 corpus.add(new LocalFileSource<String>(new File("data/sample/scholarly_work.tsv")));
                 break;
             case CUSTOM:
-                corpus.add(new LocalFileSource<String>(new File("/tmp/foo")));
+                //corpus.add(new LocalFileSource<String>(new File("/tmp/foo")));
+                corpus.add(new LocalFileSource<String>(new File("webapp/css/isotope.css")));
                 break;
         }
 
