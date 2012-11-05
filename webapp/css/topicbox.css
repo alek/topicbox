@@ -12,6 +12,22 @@
     font-style: normal;
 }
 
+/* d3 render */
+
+.background {
+  fill: #eee;
+}
+
+line {
+  stroke: #fff;
+}
+
+text.active {
+  fill: red;
+}
+
+/* -- */
+
 body {
 	background: #fff;
 	font-family:Arial, sans-serif;

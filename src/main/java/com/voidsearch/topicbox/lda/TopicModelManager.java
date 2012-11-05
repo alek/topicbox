@@ -10,9 +10,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * TopicModelManager
- *
+ * <p/>
  * manage retrieval & submission of task estimation tasks
- *
  */
 
 public class TopicModelManager {
@@ -21,7 +20,8 @@ public class TopicModelManager {
 
     Map<String, TopicModel> taskMap = new ConcurrentHashMap<String, TopicModel>();
 
-    private TopicModelManager() {}
+    private TopicModelManager() {
+    }
 
     private static class TopicModelTaskManagerHolder {
         public static final TopicModelManager INSTANCE = new TopicModelManager();
@@ -54,7 +54,7 @@ public class TopicModelManager {
     public int getModelCount() {
         return taskMap.size();
     }
-    
+
     public boolean containsModel(String taskName) {
         return taskMap.containsKey(taskName);
     }
@@ -64,21 +64,23 @@ public class TopicModelManager {
      *
      * @param taskName
      */
-    public void submitTask(String taskName) {
+    public void submitTask(String taskName, String dataSource, int numTopics) throws Exception {
 
         if (logger.isDebugEnabled()) {
             logger.info("submitting task : " + taskName);
         }
 
-        if (!taskMap.containsKey(taskName)) {
-            try {
-                TopicModel model = new TopicModel();
-                model.queueUpdate(TopicboxDataSourceFactory.getData(taskName));
-                taskMap.put(taskName, model);
-            } catch (Exception e) {
-                e.printStackTrace();
-                logger.error("error submitting task : " + taskName);
+        if (!taskMap.containsKey(taskName)
+                || taskMap.get(taskName).getNumTopics() != numTopics
+                || !dataSource.equals(taskMap.get(taskName).getDataSource())) {
+
+            TopicModel model = new TopicModel();
+            model.setDataSource(dataSource);
+            if (numTopics > 0) {
+                model.setNumTopics(numTopics);
             }
+            model.queueUpdate(TopicboxDataSourceFactory.getData(taskName, dataSource));
+            taskMap.put(taskName, model);
         }
 
     }

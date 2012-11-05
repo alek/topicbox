@@ -7,16 +7,12 @@ import java.io.InputStreamReader;
 import java.util.Iterator;
 
 public class LocalFileSource<T> implements Iterator<T> {
-    
-    BufferedReader rdr;
-    T currentEntry;
-    
-    public LocalFileSource(File inputFile) {
-        try {
-            rdr = new BufferedReader(new InputStreamReader(new FileInputStream(inputFile)));
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
+
+    private BufferedReader rdr;
+    private T currentEntry;
+
+    public LocalFileSource(File inputFile) throws Exception {
+        rdr = new BufferedReader(new InputStreamReader(new FileInputStream(inputFile)));
     }
 
     public boolean hasNext() {
@@ -27,16 +23,16 @@ public class LocalFileSource<T> implements Iterator<T> {
     public void remove() {
         //To change body of implemented methods use File | Settings | File Templates.
     }
-    
+
     public void readNext() {
         try {
-            currentEntry = (T)rdr.readLine();
+            currentEntry = (T) rdr.readLine();
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public T next(){
+    public T next() {
         return currentEntry;
     }
 }

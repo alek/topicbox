@@ -15,13 +15,19 @@ function sendRequest(socket, data) {
 // submit data source for lda model estimation
 //
 function submitLDATask(task) {
+	var taskData = "";
+	if (task == "custom") {
+		taskData = $("#custom_task_uri")[0].value;
+	}
 	clearCanvas();
 	try {
 		var socket = getWebsocket();
 		socket.onopen = function() {
 			sendRequest(socket, {
 				request : "SUBMIT_LDA_TASK",
-				taskName : task
+				taskName : task,
+				taskData : taskData,
+				numTopics : 10
 			});
 			message("submitted task : <h1>" + task + "</h1>")
 		}
@@ -61,6 +67,9 @@ function loadTopics() {
 				return;
 			}
 			var result = $.parseJSON(msg.data);
+								
+			$("#container").append(getTopicMatrixViewNav());
+			
 			for (var i=0; i<result.length; i++) {
 				
 				var renderContent = "<h3 class=\"data-source-description topic" 
@@ -98,6 +107,31 @@ function loadTopics() {
 	} catch (exception) {
 		message("error loading topics...");
 	}
+}
+
+//
+// load keyword/topic allocation matrix & render d3 structure
+//
+function loadTopicMatrix() {
+	clearCanvas();
+	$("#container").append(getTopicMatrixViewNav());
+	try {
+		var socket = getWebsocket();
+		socket.onopen = function() {
+			sendRequest(socket, {
+				request : "GET_KEYWORD_COOCCURRENCE",
+				dataset : getSelectedDataset(),
+				maxKeywordsPerTopic : 4
+			});
+		}
+		socket.onmessage = function(msg) {
+			var result = $.parseJSON(msg.data);
+			renderTopicMatrix("#container", result);
+		}
+	} catch (exception) {
+		message("error loading keyword/topic matrix");
+	}
+	
 }
 
 //
@@ -183,6 +217,11 @@ function loadKeywordDescription(keywordName) {
 
 function renderNoDataAvailable() {
 	message("[+] no data available. use <a href=\"#\" onClick=window.location.reload()>configure</a> tab to select data source");
+}
+
+function getTopicMatrixViewNav() {
+	return "<div align=\"right\"><a href=\"#\" class=\"view_select\" onClick=onclick=loadTopics()>keywords</a>" + 
+    		" | <a href=\"#\" class=\"view_select\" onClick=onclick=loadTopicMatrix()>matrix view</a></div>";
 }
 
 // get entry box width

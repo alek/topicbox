@@ -43,7 +43,9 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
         NUM_ENTRIES,                    // number of data entries to be rendered
         SUBMIT_LDA_TASK,                // submit data for model estimation
         DESCRIBE_TOPIC,                 // return topic description
-        DESCRIBE_KEYWORD                // return keyword description
+        DESCRIBE_KEYWORD,               // return keyword description
+        GET_KEYWORD_TOPIC_MATRIX,       // get top keyword -> topic allocation matrix
+        GET_KEYWORD_COOCCURRENCE       // get keyword/topic co-occurrence matrix
     }
 
     public enum WebsocketResponses {
@@ -263,7 +265,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
             throw new UnsupportedOperationException(String.format("%s frame types not supported", frame.getClass().getName()));
         }
 
-        JsonNode request =  mapper.readTree(((TextWebSocketFrame)frame).getText());
+        JsonNode request =  mapper.readTree(((TextWebSocketFrame) frame).getText());
 
         if (logger.isDebugEnabled()) {
             logger.info(String.format("request: %s", request));
@@ -279,6 +281,10 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
             handleDescribeTopicRequest(ctx, request);
         } else if (requestMatch(request, WebsocketRequests.DESCRIBE_KEYWORD)) {
             handleDescribeKeywordRequest(ctx, request);
+        } else if (requestMatch(request, WebsocketRequests.GET_KEYWORD_TOPIC_MATRIX)) {
+            handleGetKeywordTopicMatrixRequest(ctx, request);
+        } else if (requestMatch(request, WebsocketRequests.GET_KEYWORD_COOCCURRENCE)) {
+            handleGetKeywordCooccurrenceRequest(ctx, request);
         }
 
     }
@@ -366,8 +372,16 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
     private void submitLDARequest(ChannelHandlerContext ctx, JsonNode request) throws Exception {
 
         String taskName = request.get("taskName").asText();
+        String taskData = request.get("taskData").asText();
+        int numTopics = request.get("numTopics").asInt();
 
-        topicModelManager.submitTask(taskName);
+        try {
+            topicModelManager.submitTask(taskName, taskData, numTopics);
+        } catch (Exception e) {
+            ctx.getChannel().write(new TextWebSocketFrame("error submitting task " + taskName + " : " + e.getMessage()));
+            ctx.getChannel().close();
+            return;
+        }
 
         ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.TASK_NAME.toString()+taskName));
 
@@ -430,6 +444,41 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
     }
 
     /**
+     * retrieve top keyword -> topic probability matrix
+     *
+     * @param ctx
+     * @param request
+     * @throws Exception
+     */
+    private void handleGetKeywordTopicMatrixRequest(ChannelHandlerContext ctx, JsonNode request) throws Exception {
+
+        String dataset = request.get("dataset").asText();
+        int maxKeywordsPerTopic = request.get("maxKeywordsPerTopic").asInt();
+
+        TopicModel model = topicModelManager.getModel(dataset);
+
+        String rsp = mapper.writeValueAsString(model.getKeywordTopicMatrix(maxKeywordsPerTopic));
+
+        ctx.getChannel().write(new TextWebSocketFrame(rsp));
+        ctx.getChannel().close();
+
+    }
+
+    private void handleGetKeywordCooccurrenceRequest(ChannelHandlerContext ctx, JsonNode request) throws Exception {
+
+        String dataset = request.get("dataset").asText();
+        int maxKeywordsPerTopic = request.get("maxKeywordsPerTopic").asInt();
+
+        TopicModel model = topicModelManager.getModel(dataset);
+
+        String rsp = mapper.writeValueAsString(model.getCooccurrenceMatrix(maxKeywordsPerTopic));
+        ctx.getChannel().write(new TextWebSocketFrame(rsp));
+
+        ctx.getChannel().close();
+
+    }
+
+    /**
      * send http error response
      *
      * @param ctx
@@ -440,6 +489,14 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
         response.setHeader(HttpHeaders.Names.CONTENT_TYPE, "text/plain; charset=UTF-8");
         response.setContent(ChannelBuffers.copiedBuffer(status.toString() + "\r\n", CharsetUtil.UTF_8));
         ctx.getChannel().write(response).addListener(ChannelFutureListener.CLOSE);
+    }
+
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws java.lang.Exception {
+        e.getCause().printStackTrace();
+        logger.error("error executing request : " + e);
+        ctx.getChannel().close();
     }
 
 }

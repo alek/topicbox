@@ -19,12 +19,50 @@ public class TopicModel {
     private static final int INFERENCER_ITERATIONS = 5;
 
     private int numTopics;
+    private String dataSource;
+
     private TextCorpus trainingCorpus;
     private SimpleTopicModel topicModel;
     private TopicInferencer inferencer;
     
     private String[] topicNames;
 
+    public TopicModel() {
+        numTopics = MAX_TOPICS;
+    }
+
+    /**
+     * set number of topics to be estimated in given model
+     *
+     * @param numTopics
+     */
+    public void setNumTopics(int numTopics) {
+        this.numTopics = numTopics;
+    }
+
+    /**
+     * get number of topics to be estimated
+     *
+     * @return
+     */
+    public int getNumTopics() {
+        return numTopics;
+    }
+    
+    public void setDataSource(String dataSource) {
+        this.dataSource = dataSource;
+    }
+
+    public String getDataSource() {
+        return dataSource;
+    }
+
+    /**
+     * queue text corpus for model update
+     *
+     * @param corpus
+     * @throws Exception
+     */
     public void queueUpdate(TextCorpus corpus) throws Exception {
         TopicModelGenerator generator = new TopicModelGenerator();
         generator.setCorpus(corpus);
@@ -45,9 +83,6 @@ public class TopicModel {
 
         // get mallet training instances
         InstanceList trainingData = corpus.getInstances();
-
-        //int numTopics = MalletConfig.numTopics.value;
-        numTopics = MAX_TOPICS;
 
         // create new topic model
         topicModel = new SimpleTopicModel(numTopics, MalletConfig.alpha.value, MalletConfig.beta.value);
@@ -139,6 +174,10 @@ public class TopicModel {
      * @return
      */
     public Object[][] getModelTopKeywords() {
+        return getModelTopKeywords(MAX_KEYWORDS);
+    }
+
+    public Object[][] getModelTopKeywords(int maxKeywords) {
 
         ArrayList<TreeSet<IDSorter>> topicSortedWords = topicModel.getSortedWords();
         Object[][] result = new Object[numTopics][];
@@ -147,13 +186,13 @@ public class TopicModel {
 
             TreeSet<IDSorter> sortedWords = topicSortedWords.get(i);
 
-            int limit = (sortedWords.size() < MAX_KEYWORDS) ? sortedWords.size() : MAX_KEYWORDS;
+            int limit = (sortedWords.size() < maxKeywords) ? sortedWords.size() : maxKeywords;
             result[i] = new Object[limit][2];
             int entryCnt = 0;
 
             for (IDSorter ids : sortedWords) {
                 result[i][entryCnt++] = new Object[] { topicModel.getAlphabet().lookupObject(ids.getID()), ids.getWeight() };
-                if (entryCnt == MAX_KEYWORDS) {
+                if (entryCnt == maxKeywords) {
                     break;
                 }
             }
@@ -173,22 +212,38 @@ public class TopicModel {
     public Map getKeywordInfo(String keyword) {
 
         Map<String, Object> result = new HashMap<String, Object>();
+
+        result.put("topicEntries", getTopicEntries(keyword));
+
+        // TODO get number of occurences in source data & add to result
+
+        return result;
+    }
+
+    /**
+     * get cross-topic distribution for given keyword
+     * TODO : replace with more sensible structures
+     *
+     * @param keyword
+     * @return
+     */
+    private List getTopicEntries(String keyword) {
+
         List topicEntries = new ArrayList();
-        
+
         ArrayList<TreeSet<IDSorter>> topicSortedWords = topicModel.getSortedWords();
-        
+
         for (int i=0; i<numTopics; i++) {
             TreeSet<IDSorter> sortedWords = topicSortedWords.get(i);
             for (IDSorter ids : sortedWords) {
                 String entry = topicModel.getAlphabet().lookupObject(ids.getID()).toString();
                 if (keyword.equals(entry)) {
-                    topicEntries.add(new Object[] {i, ids});
+                    topicEntries.add(new Object[]{i, ids});
                 }
             }
         }
 
-        result.put("topicEntries", topicEntries);
-        return result;
+        return topicEntries;
     }
 
     /**
@@ -199,6 +254,100 @@ public class TopicModel {
      */
     public Map getTopicInfo(int topicNumber) {
         return null;
+    }
+
+
+    /**
+     * generate keyword->topic probability matrix
+     * for top @maxKeywords in each topic
+     *
+     * @param maxKeywordsPerTopic
+     */
+    public double[][] getKeywordTopicMatrix(int maxKeywordsPerTopic) {
+
+        double[][] result = new double[numTopics*maxKeywordsPerTopic][numTopics];
+
+        // get top keywords & retrieve topic distribution
+        
+        Object[][] topKeywords = getModelTopKeywords(maxKeywordsPerTopic);
+
+        // TODO - cleanup the Object[][] mess
+        for (int topic=0; topic < topKeywords.length; topic++) {
+            for (int keywordId=0; keywordId < topKeywords[topic].length; keywordId++) {
+                Object[] keywordEntry = ((Object[])topKeywords[topic][keywordId]);
+                for (Object entry : getTopicEntries((String)keywordEntry[0])) {
+                    Integer topicNumber = (Integer)((Object[])entry)[0];
+                    IDSorter sorterEntry = (IDSorter)((Object[])entry)[1];
+                    result[topic*maxKeywordsPerTopic + keywordId][topicNumber] = sorterEntry.getWeight();
+                }
+            }
+        }
+
+        return result;
+
+    }
+
+    /**
+     * get complete co-occurence matrix & associated label data
+     * (prepared for d3-friendly json serialization)
+     *
+     * TODO : return more efficient structure & reformat for d3 at service handler side
+     * 
+     * @param maxKeywordsPerTopic
+     * @return
+     */
+    public Map getCooccurrenceMatrix(int maxKeywordsPerTopic) {
+
+        Map result = new HashMap<String, Object>();
+
+        // create node list
+
+        List<Map> nodeList = new ArrayList<Map>();
+
+        Object[][] topKeywords = getModelTopKeywords(maxKeywordsPerTopic);
+
+        for (int topic=0; topic < topKeywords.length; topic++) {
+            for (int keywordId=0; keywordId < topKeywords[topic].length; keywordId++) {
+
+                Object[] keywordEntry = ((Object[])topKeywords[topic][keywordId]);
+                String keyword = (String)keywordEntry[0];
+
+                Map nodeEntry = new HashMap();
+                nodeEntry.put("name", keyword);
+                nodeEntry.put("group", topic+1);
+                nodeList.add(nodeEntry);
+
+            }
+
+        }
+
+        result.put("nodes", nodeList);
+
+        // create links list
+
+        List<Map> linksList = new ArrayList<Map>();
+
+        double[][] keywordTopic = getKeywordTopicMatrix(maxKeywordsPerTopic);
+
+        for (int keywordID = 0; keywordID < keywordTopic.length; keywordID++) {
+            for (int topic=0; topic < keywordTopic[keywordID].length; topic++) {
+                if (keywordTopic[keywordID][topic] != 0) {
+                    for (int j=0; j<keywordTopic.length; j++) {
+                        if (keywordTopic[j][topic] != 0) {
+                            Map listEntry = new HashMap();
+                            listEntry.put("source", keywordID);
+                            listEntry.put("target", j);
+                            listEntry.put("value", topic);
+                            linksList.add(listEntry);
+                        }
+                    }
+                }
+            }
+        }
+
+        result.put("links", linksList);
+
+        return result;
     }
 
     /**

@@ -96,7 +96,8 @@ public class TextCorpus extends Csv2Vectors {
      * @return
      */
     public List<String> getDocs(int maxDocs) {
-        return getDocs().subList(0, maxDocs);
+        List<String> docs = getDocs();
+        return docs.subList(0, docs.size() > maxDocs ? maxDocs : docs.size());
     }
 
     /**
