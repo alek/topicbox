@@ -40,17 +40,19 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
     public enum WebsocketRequests {
         LOAD_TOPICS,                    // load available topics for given model
         LOAD_DATA,                      // load data samples for given model
+        LIST_MODELS,                    // list estimated models
         NUM_ENTRIES,                    // number of data entries to be rendered
         SUBMIT_LDA_TASK,                // submit data for model estimation
         DESCRIBE_TOPIC,                 // return topic description
         DESCRIBE_KEYWORD,               // return keyword description
         GET_KEYWORD_TOPIC_MATRIX,       // get top keyword -> topic allocation matrix
-        GET_KEYWORD_COOCCURRENCE       // get keyword/topic co-occurrence matrix
+        GET_KEYWORD_COOCCURRENCE        // get keyword/topic co-occurrence matrix
     }
 
     public enum WebsocketResponses {
         TASK_NAME,                      // name of active task
-        MODEL_NOT_AVAILABLE             // no model available corresponding to given dataset
+        MODEL_NOT_AVAILABLE,            // no model available corresponding to given dataset
+        MODEL_INFERENCER_NOT_READY      // model estimation not complete
     }
 
     @Override
@@ -59,7 +61,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
         Object msg = e.getMessage();
 
         if (msg instanceof HttpRequest) {
-            handleHttpRequest(ctx, (HttpRequest)msg, e);
+            handleHttpRequest(ctx, (HttpRequest) msg, e);
         } else if (msg instanceof WebSocketFrame) {
             handleWebSocketFrame(ctx, (WebSocketFrame) msg);
         } else {
@@ -185,7 +187,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
 
     /**
      * handle http GET request
-     * 
+     *
      * @param ctx
      * @param req
      * @param e
@@ -216,15 +218,18 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
                 if (content.readable()) {
 
                     // handle topic rename query
-                    if(uri.startsWith("/renameTopic")) {
+                    if (uri.startsWith("/renameTopic")) {
 
+                        int numTopics = Integer.parseInt(uri.substring(uri.lastIndexOf("/") + 1));
+                        uri = uri.substring(0, uri.lastIndexOf("/"));
                         String dataset = uri.substring(uri.lastIndexOf("/") + 1);
+
                         Map<String, String> params = TopicboxUtil.unpackQueryParams(content.toString(CharsetUtil.UTF_8));
-                        
+
                         if (params.containsKey("id")) {
                             String value = params.get("id");
-                            int topicNumber = Integer.parseInt(value.substring(value.lastIndexOf("_")+1));
-                            topicModelManager.getModel(dataset).updateTopicName(topicNumber,params.get("value"));
+                            int topicNumber = Integer.parseInt(value.substring(value.lastIndexOf("_") + 1));
+                            topicModelManager.getModel(dataset, numTopics).updateTopicName(topicNumber, params.get("value"));
                         }
 
                         response.setContent(ChannelBuffers.copiedBuffer(params.get("value"), CharsetUtil.UTF_8));
@@ -233,7 +238,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
             }
 
         } else {
-            HttpChunk chunk = (HttpChunk)e.getMessage();
+            HttpChunk chunk = (HttpChunk) e.getMessage();
             if (chunk.isLast()) {
                 readingChunks = false;
             }
@@ -256,7 +261,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
     private void handleWebSocketFrame(ChannelHandlerContext ctx, WebSocketFrame frame) throws Exception {
 
         if (frame instanceof CloseWebSocketFrame) {
-            handshaker.close(ctx.getChannel(), (CloseWebSocketFrame)frame);
+            handshaker.close(ctx.getChannel(), (CloseWebSocketFrame) frame);
             return;
         } else if (frame instanceof PingWebSocketFrame) {
             ctx.getChannel().write(new PongWebSocketFrame(frame.getBinaryData()));
@@ -265,7 +270,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
             throw new UnsupportedOperationException(String.format("%s frame types not supported", frame.getClass().getName()));
         }
 
-        JsonNode request =  mapper.readTree(((TextWebSocketFrame) frame).getText());
+        JsonNode request = mapper.readTree(((TextWebSocketFrame) frame).getText());
 
         if (logger.isDebugEnabled()) {
             logger.info(String.format("request: %s", request));
@@ -285,6 +290,8 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
             handleGetKeywordTopicMatrixRequest(ctx, request);
         } else if (requestMatch(request, WebsocketRequests.GET_KEYWORD_COOCCURRENCE)) {
             handleGetKeywordCooccurrenceRequest(ctx, request);
+        } else if (requestMatch(request, WebsocketRequests.LIST_MODELS)) {
+            handleListModelsRequest(ctx, request);
         }
 
     }
@@ -310,13 +317,14 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
     private void handleLoadTopicRequest(ChannelHandlerContext ctx, JsonNode request) throws Exception {
 
         String datasetName = request.get("dataset").asText();
+        int numTopics = request.get("numTopics").asInt();
 
-        if (topicModelManager.getModelCount() == 0 || !topicModelManager.containsModel(datasetName)) {
+        if (topicModelManager.getModelCount() == 0 || !topicModelManager.containsModel(datasetName, numTopics)) {
             ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.MODEL_NOT_AVAILABLE.toString()));
             return;
         }
 
-        TopicModel model = topicModelManager.getModel(datasetName);
+        TopicModel model = topicModelManager.getModel(datasetName, numTopics);
         Object[][] topKeywords = model.getModelTopKeywords();
 
         String rsp = mapper.writeValueAsString(topKeywords);
@@ -337,14 +345,15 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
 
         String datasetName = request.get("dataset").asText();
         int numEntries = request.get("numEntries").asInt();
+        int numTopics = request.get("numTopics").asInt();
 
-        if (topicModelManager.getModelCount() == 0 || !topicModelManager.containsModel(datasetName)) {
+        if (topicModelManager.getModelCount() == 0 || !topicModelManager.containsModel(datasetName, numTopics)) {
             ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.MODEL_NOT_AVAILABLE.toString()));
             ctx.getChannel().close();
             return;
         }
 
-        TopicModel model = topicModelManager.getModel(datasetName);
+        TopicModel model = topicModelManager.getModel(datasetName, numTopics);
         TextCorpus corpus = model.getCorpus();
 
         String rsp;
@@ -354,7 +363,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
             Object[][] data = model.inferTopics(corpus.getDocs(numEntries));
             rsp = mapper.writeValueAsString(data);
         } else {
-            rsp = "model inferencer not ready";
+            rsp = WebsocketResponses.MODEL_INFERENCER_NOT_READY.toString();
         }
 
         ctx.getChannel().write(new TextWebSocketFrame(rsp));
@@ -383,15 +392,15 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
             return;
         }
 
-        ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.TASK_NAME.toString()+taskName));
+        ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.TASK_NAME.toString() + taskName + "/" + numTopics));
 
-        TopicModel model = topicModelManager.getModel(taskName);
+        TopicModel model = topicModelManager.getModel(taskName, numTopics, taskData);
 
         while (!model.ready()) {
             if (model.estimationStarted()) {
                 ctx.getChannel().write(new TextWebSocketFrame("model estimation in progress... " +
-                        " expected time to complete : "
-                        + model.getExpectedCompletionTime()/1000 + " sec"));
+                        " expected time to completion : "
+                        + model.getExpectedCompletionTime() / 1000 + " sec"));
             } else {
                 ctx.getChannel().write(new TextWebSocketFrame("initializing model generator ..."));
             }
@@ -414,8 +423,9 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
 
         int topicNumber = request.get("topicNumber").asInt();
         String dataset = request.get("dataset").asText();
+        int numTopics = request.get("numTopics").asInt();
 
-        TopicModel model = topicModelManager.getModel(dataset);
+        TopicModel model = topicModelManager.getModel(dataset, numTopics);
         String rsp = mapper.writeValueAsString(model.getTopicInfo(topicNumber));
 
         ctx.getChannel().write(new TextWebSocketFrame(rsp));
@@ -434,8 +444,9 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
 
         String keyword = request.get("keyword").asText();
         String dataset = request.get("dataset").asText();
+        int numTopics = request.get("numTopics").asInt();
 
-        TopicModel model = topicModelManager.getModel(dataset);
+        TopicModel model = topicModelManager.getModel(dataset, numTopics);
         String rsp = mapper.writeValueAsString(model.getKeywordInfo(keyword));
 
         ctx.getChannel().write(new TextWebSocketFrame(rsp));
@@ -453,9 +464,11 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
     private void handleGetKeywordTopicMatrixRequest(ChannelHandlerContext ctx, JsonNode request) throws Exception {
 
         String dataset = request.get("dataset").asText();
+        int numTopics = request.get("numTopics").asInt();
+
         int maxKeywordsPerTopic = request.get("maxKeywordsPerTopic").asInt();
 
-        TopicModel model = topicModelManager.getModel(dataset);
+        TopicModel model = topicModelManager.getModel(dataset, numTopics);
 
         String rsp = mapper.writeValueAsString(model.getKeywordTopicMatrix(maxKeywordsPerTopic));
 
@@ -467,15 +480,25 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
     private void handleGetKeywordCooccurrenceRequest(ChannelHandlerContext ctx, JsonNode request) throws Exception {
 
         String dataset = request.get("dataset").asText();
+        int numTopics = request.get("numTopics").asInt();
         int maxKeywordsPerTopic = request.get("maxKeywordsPerTopic").asInt();
 
-        TopicModel model = topicModelManager.getModel(dataset);
+        TopicModel model = topicModelManager.getModel(dataset, numTopics);
 
         String rsp = mapper.writeValueAsString(model.getCooccurrenceMatrix(maxKeywordsPerTopic));
         ctx.getChannel().write(new TextWebSocketFrame(rsp));
 
         ctx.getChannel().close();
 
+    }
+
+    private void handleListModelsRequest(ChannelHandlerContext ctx, JsonNode request) throws Exception {
+
+        ctx.getChannel().write(new TextWebSocketFrame(
+                mapper.writeValueAsString(topicModelManager.getModelDescriptions())
+        ));
+
+        ctx.getChannel().close();
     }
 
     /**

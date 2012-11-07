@@ -21,7 +21,7 @@ public class TopicModelTest {
 //            corpus.add(new LocalFileSource<String>(new File("/var/log/launchd-shutdown.log")));
 //            corpus.add(new HttpStreamingSource("http://localhost/foo"));
 
-            TopicModel model = new TopicModel();
+            TopicModel model = new TopicModel("foo");
             model.update(corpus);
 
         } catch (Exception e) {

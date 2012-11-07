@@ -15,7 +15,7 @@ public class TopicboxDataSourceFactory {
     public enum TaskName {
         TWITTER,
         SYSLOG,
-        RSS,
+        SCHOLAR,
         CUSTOM
     }
     
@@ -32,7 +32,7 @@ public class TopicboxDataSourceFactory {
             case SYSLOG:
                 corpus.add(new LocalFileSource<String>(new File("/var/log/launchd-shutdown.log")));
                 break;
-            case RSS:
+            case SCHOLAR:
                 corpus.add(new LocalFileSource<String>(new File("data/sample/scholarly_work.tsv")));
                 break;
             case CUSTOM:

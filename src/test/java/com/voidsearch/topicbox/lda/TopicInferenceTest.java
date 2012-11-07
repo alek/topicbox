@@ -15,7 +15,7 @@ public class TopicInferenceTest {
         corpus.add("foo baz baz2 classify me test");
         corpus.add("somefoo baz baz2 classify me test waz maz zaz");
 
-        TopicModel model = new TopicModel();
+        TopicModel model = new TopicModel("foo");
         model.update(corpus);
 
         for (String doc : corpus.getDocs()) {

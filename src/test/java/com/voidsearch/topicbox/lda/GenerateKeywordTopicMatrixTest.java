@@ -17,7 +17,7 @@ public class GenerateKeywordTopicMatrixTest {
     public void nullTest() throws Exception {
 
         // train simple model
-        TopicModel model = new TopicModel();
+        TopicModel model = new TopicModel("foo");
         model.setNumTopics(10);
         TextCorpus corpus = new TextCorpus();
         corpus.add(new LocalFileSource<String>(new File("webapp/css/isotope.css")));

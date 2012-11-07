@@ -18,6 +18,7 @@ public class TopicModel {
     private static final int MAX_KEYWORDS = 25;     // max top keywords per topic
     private static final int INFERENCER_ITERATIONS = 5;
 
+    private String taskName;
     private int numTopics;
     private String dataSource;
 
@@ -27,8 +28,13 @@ public class TopicModel {
     
     private String[] topicNames;
 
-    public TopicModel() {
+    public TopicModel(String taskName) {
+        this.taskName = taskName;
         numTopics = MAX_TOPICS;
+    }
+    
+    public String getTaskName() {
+        return taskName;
     }
 
     /**
@@ -55,6 +61,15 @@ public class TopicModel {
 
     public String getDataSource() {
         return dataSource;
+    }
+
+    /**
+     * get description of current model state
+     *
+     * @return
+     */
+    public ModelDescription getDesciption() {
+        return new ModelDescription(this);
     }
 
     /**
@@ -504,6 +519,49 @@ public class TopicModel {
             } catch (Exception e) {
                 e.printStackTrace();
             }
+        }
+
+    }
+
+
+    /**
+     * simple model description
+     * (for jackson's direct bean-style serialization)
+     */
+    public class ModelDescription {
+
+        String taskName;
+        int numTopics;
+        String dataSource;
+        boolean estimationStarted;
+        boolean modelComplete;
+
+        public ModelDescription(TopicModel model) {
+            this.taskName = model.getTaskName();
+            this.numTopics = model.getNumTopics();
+            this.dataSource = model.getDataSource();
+            this.estimationStarted = model.estimationStarted();
+            this.modelComplete = model.modelComplete();
+        }
+
+        public String getTaskName() {
+            return taskName;
+        }
+
+        public String getDataSource() {
+            return dataSource;
+        }
+
+        public int getNumTopics() {
+            return numTopics;
+        }
+
+        public boolean isEstimationStarted() {
+            return estimationStarted;
+        }
+
+        public boolean isModelComplete() {
+            return modelComplete;
         }
 
     }

@@ -1,3 +1,6 @@
+
+
+// topicbox service configuration | TODO : change the way this is retrieved
 var WEBSOCKET_ENDPOINT = "ws://localhost:1981/ws/";
 var TOPIC_RENAME_POST_URI  = "http://localhost:1981/renameTopic";
 
@@ -14,11 +17,17 @@ function sendRequest(socket, data) {
 //
 // submit data source for lda model estimation
 //
-function submitLDATask(task) {
+function submitLDATask(task, numTopics) {
 	var taskData = "";
 	if (task == "custom") {
 		taskData = $("#custom_task_uri")[0].value;
 	}
+	
+	// num topics not passed - try to pick it up from select
+	if (!numTopics) {
+	    numTopics = $("#number_of_topics")[0].value;
+	}
+
 	clearCanvas();
 	try {
 		var socket = getWebsocket();
@@ -27,15 +36,16 @@ function submitLDATask(task) {
 				request : "SUBMIT_LDA_TASK",
 				taskName : task,
 				taskData : taskData,
-				numTopics : 10
+				numTopics : numTopics
 			});
-			message("submitted task : <h1>" + task + "</h1>")
+			message("submitted task : <h1>" + task + "</h1><br><h3 class=\"status_update_box\"><div id=\"task_gen_updates\"></div></h3>")
 		}
 		socket.onmessage = function(msg) {
 			if (msg.data.indexOf("TASK_NAME") == 0) {
 				setSelectedDataset(msg.data.substring("TASK_NAME".length));
 			} else {
-				message(msg.data);
+				$("#task_gen_updates").empty();
+				$("#task_gen_updates").append(msg.data);
 			}
 		}
 		socket.onclose = function() {
@@ -49,15 +59,21 @@ function submitLDATask(task) {
 //
 // load topics for a given model
 //
-function loadTopics() {
+function loadTopics(dataset, numTopics) {
 	clearCanvas();
 	message("<h5>loading topics ...</h5>");
+
+	if (dataset) {
+	    setSelectedDataset(dataset + "/" + numTopics);
+	}
+
 	try {
 		var socket = getWebsocket();
 		socket.onopen = function() {
 			sendRequest(socket, {
 				request : "LOAD_TOPICS",
-				dataset : getSelectedDataset()
+				dataset : dataset ? dataset : getSelectedDataset(),
+				numTopics : numTopics ? numTopics : getNumberOfTopics()
 			});
 		}
 		socket.onmessage = function(msg) {
@@ -81,7 +97,7 @@ function loadTopics() {
 					var name = result[i][j][0];
 					var weight = result[i][j][1];
 					
-					renderContent += "<div><a href=\"#\" class=\"item group" 
+					renderContent += "<div><a href=\"#\"  rel=\"tooltip\" title=\"topic weight : " + weight + "\" class=\"item group" 
 											+ getGroup(weight, j) 
 											+ "\" onclick=loadKeywordDescription(\"" + name + "\")>" 
 											+ name + "</a></div>";
@@ -92,7 +108,7 @@ function loadTopics() {
 				
 				$("#container").append(renderContent);
 				
-				$('.topic' + i).editable(TOPIC_RENAME_POST_URI + "/" + getSelectedDataset(), {
+				$('.topic' + i).editable(TOPIC_RENAME_POST_URI + "/" + getSelectedDataset() + "/" + getNumberOfTopics(), {
 					indicator : 'updating...'
 				});
 				
@@ -101,6 +117,9 @@ function loadTopics() {
 						columnWidth: 70
 					}
 				});
+
+				$('#topic' + i).tooltip('show');
+
 			}
 			
 		}
@@ -121,6 +140,7 @@ function loadTopicMatrix() {
 			sendRequest(socket, {
 				request : "GET_KEYWORD_COOCCURRENCE",
 				dataset : getSelectedDataset(),
+				numTopics : getNumberOfTopics(),
 				maxKeywordsPerTopic : 4
 			});
 		}
@@ -137,15 +157,21 @@ function loadTopicMatrix() {
 //
 // load data samples for topics in given model
 //
-function loadData() {
+function loadData(dataset, numTopics) {
 	clearCanvas();
+	
+	if (dataset) {
+	    setSelectedDataset(dataset + "/" + numTopics);
+	}
+
 	message("loading data ...");
 	try {
 		var socket = getWebsocket();
 		socket.onopen = function() {
 			sendRequest(socket, {
 				request : "LOAD_DATA",
-				dataset : getSelectedDataset(),
+				dataset : dataset ? dataset : getSelectedDataset(),
+				numTopics : numTopics ? numTopics : getNumberOfTopics(),
 				numEntries : 500
 			});
 		}
@@ -154,6 +180,9 @@ function loadData() {
 			if (msg.data == "MODEL_NOT_AVAILABLE") {
 				renderNoDataAvailable();
 				return;
+			} else if (msg.data == "MODEL_INFERENCER_NOT_READY") {
+			    renderInferenceNotReady();
+			    return;
 			}
 			
 			var result = $.parseJSON(msg.data);
@@ -187,6 +216,36 @@ function loadData() {
 	}
 }
 
+//
+// list currently available models
+//
+function listModels() {
+    clearCanvas();
+    message("<h3 class=\"status_update_box\">estimated models</h3>");
+    try {
+	var socket = getWebsocket();
+	socket.onopen = function() {
+	    sendRequest(socket, {
+		    request : "LIST_MODELS"
+		});
+	}
+	socket.onmessage = function(msg) {
+	    var result = $.parseJSON(msg.data);
+	    for (var id in result) {
+		message("<h2 class=\"data-source\"><a href=\"#\" " 
+			+ "onclick=loadTopics(\"" + result[id]["taskName"] +"\"," + result[id]["numTopics"]  + ")>" 
+			+ result[id]["taskName"] + "</a></h2>" 
+			+ "num topics : <b>" + result[id]["numTopics"] + "</b> | "  
+			+ "estimation started : " + result[id]["estimationStarted"] + " | " 
+			+ "estimation complete : " + result[id]["modelComplete"] 
+			);
+	    }
+	}
+    } catch (exception) {
+	message("error retrieving model list");
+    }
+}
+
 // 
 // load model description on given keyword
 //
@@ -199,7 +258,8 @@ function loadKeywordDescription(keywordName) {
 			sendRequest(socket, {
 				request : "DESCRIBE_KEYWORD",
 				keyword : keywordName,
-				dataset : getSelectedDataset()
+				dataset : getSelectedDataset(),
+				numTopics : getNumberOfTopics()
 			});
 		}
 		socket.onmessage = function(msg) {
@@ -217,6 +277,10 @@ function loadKeywordDescription(keywordName) {
 
 function renderNoDataAvailable() {
 	message("[+] no data available. use <a href=\"#\" onClick=window.location.reload()>configure</a> tab to select data source");
+}
+
+function renderInferenceNotReady() {
+    message("[+] model inferencer not ready, wait for model estimation to complete");
 }
 
 function getTopicMatrixViewNav() {
@@ -261,7 +325,12 @@ function setSelectedDataset(dataset) {
 
 // get active dataset
 function getSelectedDataset() {
-	return $("#selected_dataset").text();
+	    return $("#selected_dataset").text().split("/")[0];
+}
+
+function getNumberOfTopics() {
+    var numTopics = $("#selected_dataset").text().split("/")[1];
+    return numTopics ? numTopics : 0;
 }
 
 // write message 

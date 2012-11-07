@@ -106,7 +106,7 @@ h3 {
 }
 
 h3.data-source {
-	clear: both;
+        clear: both;
 	font-family: 'Dosis', Arial;
 	font-weight: 300;
 	font-size: 24px;
@@ -114,6 +114,17 @@ h3.data-source {
 	border-bottom: 0px solid #dddddd;
 	padding-top:64px;
 	padding-bottom: 64px;
+	background: #fff;
+	line-height: 40px;
+}
+
+h3.status_update_box {
+        clear: both;
+	font-family: 'Dosis', Arial;
+	font-weight: 300;
+	font-size: 24px;
+	color: #111;
+	border-bottom: 0px solid #dddddd;
 	background: #fff;
 	line-height: 40px;
 }

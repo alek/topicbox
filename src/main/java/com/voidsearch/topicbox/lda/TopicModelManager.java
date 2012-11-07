@@ -5,8 +5,8 @@ import com.voidsearch.topicbox.source.TopicboxDataSourceFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.*;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * TopicModelManager
@@ -18,10 +18,7 @@ public class TopicModelManager {
 
     private static final Logger logger = LoggerFactory.getLogger(TopicboxServer.class.getName());
 
-    Map<String, TopicModel> taskMap = new ConcurrentHashMap<String, TopicModel>();
-
-    private TopicModelManager() {
-    }
+    Queue<TopicModel> models = new ConcurrentLinkedQueue<TopicModel>();
 
     private static class TopicModelTaskManagerHolder {
         public static final TopicModelManager INSTANCE = new TopicModelManager();
@@ -37,13 +34,60 @@ public class TopicModelManager {
     }
 
     /**
+     * check whether given model has been submitted
+     *
+     * @param taskName
+     * @param numTopics
+     * @param dataSource
+     * @return
+     */
+    public boolean containsModel(String taskName, int numTopics, String dataSource) {
+        return getModel(taskName, numTopics, dataSource) != null;
+    }
+
+    public boolean containsModel(String taskName, int numTopics) {
+        return containsModel(taskName, numTopics, null);
+    }
+
+    /**
      * get model corresponding to given task
      *
      * @param taskName
+     * @param numTopics
+     * @param dataSource
      * @return
      */
-    public TopicModel getModel(String taskName) {
-        return taskMap.get(taskName);
+    public TopicModel getModel(String taskName, int numTopics, String dataSource) {
+
+        for (TopicModel model : models) {
+
+            if (taskName.equals(model.getTaskName())
+                    && numTopics == model.getNumTopics()) {
+
+                if (dataSource == null || dataSource.equals(model.getDataSource())) {
+                    return model;
+                }
+
+            }
+        }
+        return null;
+    }
+
+    public TopicModel getModel(String taskName, int numTopics) {
+        return getModel(taskName, numTopics, null);
+    }
+
+    /**
+     * get model descriptions
+     *
+     * @return
+     */
+    public Set<TopicModel.ModelDescription> getModelDescriptions() {
+        Set<TopicModel.ModelDescription> result = new HashSet<TopicModel.ModelDescription>();
+        for (TopicModel model : models) {
+            result.add(model.getDesciption());
+        }
+        return result;
     }
 
     /**
@@ -52,11 +96,7 @@ public class TopicModelManager {
      * @return
      */
     public int getModelCount() {
-        return taskMap.size();
-    }
-
-    public boolean containsModel(String taskName) {
-        return taskMap.containsKey(taskName);
+        return models.size();
     }
 
     /**
@@ -70,17 +110,15 @@ public class TopicModelManager {
             logger.info("submitting task : " + taskName);
         }
 
-        if (!taskMap.containsKey(taskName)
-                || taskMap.get(taskName).getNumTopics() != numTopics
-                || !dataSource.equals(taskMap.get(taskName).getDataSource())) {
+        if (!containsModel(taskName, numTopics, dataSource)) {
 
-            TopicModel model = new TopicModel();
+            TopicModel model = new TopicModel(taskName);
             model.setDataSource(dataSource);
             if (numTopics > 0) {
                 model.setNumTopics(numTopics);
             }
             model.queueUpdate(TopicboxDataSourceFactory.getData(taskName, dataSource));
-            taskMap.put(taskName, model);
+            models.add(model);
         }
 
     }
