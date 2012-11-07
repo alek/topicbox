@@ -28,6 +28,10 @@ function submitLDATask(task, numTopics) {
 	    numTopics = $("#number_of_topics")[0].value;
 	}
 
+
+	setSelectedDataset(task + "/" + numTopics);
+	setDataSource(taskData);
+
 	clearCanvas();
 	try {
 		var socket = getWebsocket();
@@ -50,6 +54,7 @@ function submitLDATask(task, numTopics) {
 		}
 		socket.onclose = function() {
 			message("[+] use <a href=\"#\" onClick=onclick=loadTopics()>Topic View</a> to start browsing");
+			socket.close();
 		}
 	} catch (exception) {
 		message("error submitting task to topicbox server");
@@ -126,7 +131,9 @@ function loadTopics(dataset, numTopics, dataSource) {
 				$('#topic' + i).tooltip('show');
 
 			}
-			
+		}
+		socket.onclose = function() {
+		    socket.close();
 		}
 	} catch (exception) {
 		message("error loading topics...");
@@ -153,6 +160,9 @@ function loadTopicMatrix() {
 		socket.onmessage = function(msg) {
 			var result = $.parseJSON(msg.data);
 			renderTopicMatrix("#container", result);
+		}
+		socket.onclose = function() {
+		    socket.close();
 		}
 	} catch (exception) {
 		message("error loading keyword/topic matrix");
@@ -221,7 +231,9 @@ function loadData(dataset, numTopics, dataSource) {
 				
 				
 			}
-			
+		}
+		socket.onclose = function() {
+		    socket.close();
 		}
 	} catch (exception) {
 		message("error loading topics ...")
@@ -254,6 +266,9 @@ function listModels() {
 			);
 	    }
 	}
+	socket.onclose = function(msg) {
+	    socket.close();
+	}
     } catch (exception) {
 	message("error retrieving model list");
     }
@@ -283,6 +298,9 @@ function loadKeywordDescription(keywordName) {
 				var entryData = topicEntries[entry];
 				message("topic : " + entryData[0] + " | weight : " + entryData[1]["weight"]);
 			}
+		}
+		socket.onclose = function() {
+		    socket.close();
 		}
 	} catch (exception) {
 		message("error retrieving description for keyword : " + keywordName);
