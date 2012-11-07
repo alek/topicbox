@@ -45,9 +45,9 @@ public class TopicModelManager {
         return getModel(taskName, numTopics, dataSource) != null;
     }
 
-    public boolean containsModel(String taskName, int numTopics) {
-        return containsModel(taskName, numTopics, null);
-    }
+//    public boolean containsModel(String taskName, int numTopics) {
+//        return containsModel(taskName, numTopics, null);
+//    }
 
     /**
      * get model corresponding to given task

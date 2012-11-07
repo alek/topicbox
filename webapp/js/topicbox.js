@@ -59,12 +59,16 @@ function submitLDATask(task, numTopics) {
 //
 // load topics for a given model
 //
-function loadTopics(dataset, numTopics) {
+function loadTopics(dataset, numTopics, dataSource) {
 	clearCanvas();
 	message("<h5>loading topics ...</h5>");
 
 	if (dataset) {
 	    setSelectedDataset(dataset + "/" + numTopics);
+	}
+
+	if (dataSource) {
+	    setDataSource(dataSource);
 	}
 
 	try {
@@ -73,7 +77,8 @@ function loadTopics(dataset, numTopics) {
 			sendRequest(socket, {
 				request : "LOAD_TOPICS",
 				dataset : dataset ? dataset : getSelectedDataset(),
-				numTopics : numTopics ? numTopics : getNumberOfTopics()
+				numTopics : numTopics ? numTopics : getNumberOfTopics(),
+				dataSource : dataSource ? dataSource : getDataSource()
 			});
 		}
 		socket.onmessage = function(msg) {
@@ -141,6 +146,7 @@ function loadTopicMatrix() {
 				request : "GET_KEYWORD_COOCCURRENCE",
 				dataset : getSelectedDataset(),
 				numTopics : getNumberOfTopics(),
+				dataSource : getDataSource(),
 				maxKeywordsPerTopic : 4
 			});
 		}
@@ -157,11 +163,16 @@ function loadTopicMatrix() {
 //
 // load data samples for topics in given model
 //
-function loadData(dataset, numTopics) {
+function loadData(dataset, numTopics, dataSource) {
+
 	clearCanvas();
 	
 	if (dataset) {
 	    setSelectedDataset(dataset + "/" + numTopics);
+	}
+
+	if (dataSource) {
+	    setDataSource(dataSource);
 	}
 
 	message("loading data ...");
@@ -172,6 +183,7 @@ function loadData(dataset, numTopics) {
 				request : "LOAD_DATA",
 				dataset : dataset ? dataset : getSelectedDataset(),
 				numTopics : numTopics ? numTopics : getNumberOfTopics(),
+				dataSource : dataSource ? dataSource : getDataSource(),
 				numEntries : 500
 			});
 		}
@@ -233,9 +245,10 @@ function listModels() {
 	    var result = $.parseJSON(msg.data);
 	    for (var id in result) {
 		message("<h2 class=\"data-source\"><a href=\"#\" " 
-			+ "onclick=loadTopics(\"" + result[id]["taskName"] +"\"," + result[id]["numTopics"]  + ")>" 
+			+ "onclick=loadTopics(\"" + result[id]["taskName"] +"\"," + result[id]["numTopics"]  + ",\"" + result[id]["dataSource"] + "\")>" 
 			+ result[id]["taskName"] + "</a></h2>" 
 			+ "num topics : <b>" + result[id]["numTopics"] + "</b> | "  
+			+ "data source : <b>" + result[id]["dataSource"] + "</b> | "
 			+ "estimation started : " + result[id]["estimationStarted"] + " | " 
 			+ "estimation complete : " + result[id]["modelComplete"] 
 			);
@@ -259,7 +272,8 @@ function loadKeywordDescription(keywordName) {
 				request : "DESCRIBE_KEYWORD",
 				keyword : keywordName,
 				dataset : getSelectedDataset(),
-				numTopics : getNumberOfTopics()
+				numTopics : getNumberOfTopics(),
+				dataSource : getDataSource()
 			});
 		}
 		socket.onmessage = function(msg) {
@@ -323,6 +337,11 @@ function setSelectedDataset(dataset) {
 	$("#selected_dataset").append(dataset);
 }
 
+function setDataSource(dataSource) {
+    $("#data_source").empty();
+    $("#data_source").append(dataSource);
+}
+
 // get active dataset
 function getSelectedDataset() {
 	    return $("#selected_dataset").text().split("/")[0];
@@ -331,6 +350,11 @@ function getSelectedDataset() {
 function getNumberOfTopics() {
     var numTopics = $("#selected_dataset").text().split("/")[1];
     return numTopics ? numTopics : 0;
+}
+
+function getDataSource() {
+    var dataSource = $("#data_source").text();
+    return dataSource ? dataSource : "";
 }
 
 // write message 

@@ -54,8 +54,9 @@ public class TopicboxDataSourceFactory {
         if (uri.startsWith("http://")) {
             return new HttpStreamingSource(uri);
         } else {
-            if ((new File(uri).exists())) {
-                return new LocalFileSource<String>(new File(uri));
+            File fd = new File(uri);
+            if (fd.exists()) {
+                return new LocalFileSource<String>(fd);
             } else {
                 throw new Exception("file [ " + uri + " ] does not exist");
             }

@@ -1,18 +1,28 @@
 package com.voidsearch.topicbox.source;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.Iterator;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 public class LocalFileSource<T> implements Iterator<T> {
 
     private BufferedReader rdr;
     private T currentEntry;
 
+    ConcurrentLinkedQueue<BufferedReader> readerQueue = new ConcurrentLinkedQueue<BufferedReader>();
+
     public LocalFileSource(File inputFile) throws Exception {
-        rdr = new BufferedReader(new InputStreamReader(new FileInputStream(inputFile)));
+        if (inputFile.isDirectory()) {
+            for (File file : inputFile.listFiles())  {
+                if (!file.isHidden() && !file.isDirectory()) {
+                    try {
+                        readerQueue.add(new BufferedReader(new InputStreamReader(new FileInputStream(file))));
+                    } catch (FileNotFoundException e) { } // ignore inaccessible files
+                }
+            }
+        } else {
+            readerQueue.add(new BufferedReader(new InputStreamReader(new FileInputStream(inputFile))));
+        }
     }
 
     public boolean hasNext() {
@@ -26,7 +36,14 @@ public class LocalFileSource<T> implements Iterator<T> {
 
     public void readNext() {
         try {
-            currentEntry = (T) rdr.readLine();
+            if (readerQueue.size() > 0) {
+                currentEntry = (T)readerQueue.peek().readLine();
+                if (currentEntry == null) {
+                    readerQueue.peek().close();
+                    readerQueue.remove();
+                    readNext();
+                }
+            }
         } catch (Exception e) {
             e.printStackTrace();
         }
