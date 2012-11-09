@@ -136,14 +136,14 @@ public class TopicModel {
      * @param text
      * @return
      */
-    public int getMaxLikelihoodTopic(String text) {
+    public InferencerResult getMaxLikelihoodTopic(String text) {
 
         Instance instance = trainingCorpus.getInstance(text);
 
         // TODO : make inferencer params configurable
         double[] topicDistribution = inferencer.getSampledDistribution(instance, INFERENCER_ITERATIONS, 1, 1);
 
-        return TopicboxUtil.getMaxPosition(topicDistribution);
+        return new InferencerResult(text, topicDistribution);
 
     }
 
@@ -154,28 +154,40 @@ public class TopicModel {
      * @param docs
      * @return
      */
-    public Object[][] inferTopics(List<String> docs) {
+    public Object[][] inferTopics(List<String> docs, int maxEntriesPerTopic) {
 
         List[] topics = new ArrayList[numTopics];
         
         for (String doc : docs) {
-            int topicNumber = getMaxLikelihoodTopic(doc);
-            if (topics[topicNumber] == null) {
-                topics[topicNumber] = new ArrayList();
+            InferencerResult result = getMaxLikelihoodTopic(doc); 
+            //int topicNumber = getMaxLikelihoodTopic(doc);
+            if (topics[result.getMaxPosition()] == null) {
+                topics[result.getMaxPosition()] = new ArrayList();
             }
-            topics[topicNumber].add(doc);
+            topics[result.getMaxPosition()].add(result);
+        }
+        
+        // sort all topics
+        for (int i=0; i<topics.length; i++) {
+            if (topics[i] != null) {
+                Collections.sort(topics[i]);
+            }
         }
 
         Object[][] result = new Object[numTopics][];
         for (int i=0; i<numTopics; i++) {
             if (topics[i] != null) {
-                result[i] = topics[i].toArray();
+                int limit = topics[i].size() > maxEntriesPerTopic ? maxEntriesPerTopic : topics[i].size();
+                result[i] = new String[limit];
+                for (int j=0; j<limit; j++) {
+                    result[i][j] = ((InferencerResult)topics[i].get(j)).getText();
+                }
+                //result[i] = topics[i].toArray();
             }
         }
 
         return result;
     }
-
 
     // TODO : refactor this / no need for proxy methods
 
@@ -521,6 +533,56 @@ public class TopicModel {
             }
         }
 
+    }
+
+    /**
+     * simple inferencer result container
+     */
+    public class InferencerResult implements Comparable {
+        
+        private String text;
+        private double[] result;
+        
+        int maxPosition = -1;
+        
+        public InferencerResult(String text, double[] result) {
+            this.text = text;
+            this.result = result;
+        }
+        
+        public String getText() {
+            return text;
+        }
+    
+        public int getMaxPosition() {
+            if (maxPosition < 0) {
+                maxPosition = TopicboxUtil.getMaxPosition(result);
+            }
+            return maxPosition;
+        }
+        
+        public Double getMaxWeight() {
+            if (maxPosition < 0) {
+                getMaxPosition();
+            }
+            return result[maxPosition];
+        }
+
+        public int compareTo(Object o) {
+            if (o instanceof InferencerResult) {
+                return ((InferencerResult)o).getMaxWeight().compareTo(getMaxWeight());
+            } else {
+                return 0;
+            }
+        }
+        
+        public String toString() {
+            StringBuilder sb = new StringBuilder();
+            sb.append("text : \"" + text).append("\", ")
+                .append("topic : " + getMaxPosition()).append(", ")
+                .append("weight : " + getMaxWeight());
+            return sb.toString();
+        }
     }
 
 

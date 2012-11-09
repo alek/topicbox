@@ -358,6 +358,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
         int numEntries = request.get("numEntries").asInt();
         int numTopics = request.get("numTopics").asInt();
         String dataSource = request.get("dataSource").asText();
+        int maxEntriesPerTopic = request.get("maxEntriesPerTopic").asInt();
 
         if (topicModelManager.getModelCount() == 0 || !topicModelManager.containsModel(datasetName, numTopics, dataSource)) {
             ctx.getChannel().write(new TextWebSocketFrame(WebsocketResponses.MODEL_NOT_AVAILABLE.toString()));
@@ -372,7 +373,7 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
 
         if (model.ready()) {
             // draw docs from training sample - TODO : replace this
-            Object[][] data = model.inferTopics(corpus.getDocs(numEntries));
+            Object[][] data = model.inferTopics(corpus.getDocs(numEntries), maxEntriesPerTopic);
             rsp = mapper.writeValueAsString(data);
         } else {
             rsp = WebsocketResponses.MODEL_INFERENCER_NOT_READY.toString();
@@ -533,7 +534,9 @@ public class TopicboxServerHandler extends SimpleChannelUpstreamHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, ExceptionEvent e) throws java.lang.Exception {
-        e.getCause().printStackTrace();
+        if (logger.isDebugEnabled()) {
+            e.getCause().printStackTrace();
+        }
         logger.error("error executing request : " + e);
         ctx.getChannel().close();
     }

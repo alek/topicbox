@@ -19,7 +19,8 @@ public class TopicInferenceTest {
         model.update(corpus);
 
         for (String doc : corpus.getDocs()) {
-            int topic = model.getMaxLikelihoodTopic(doc);
+            //int topic = model.getMaxLikelihoodTopic(doc);
+            System.out.println((model.getMaxLikelihoodTopic(doc)).toString());
         }
 
     }

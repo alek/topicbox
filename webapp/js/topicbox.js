@@ -194,7 +194,8 @@ function loadData(dataset, numTopics, dataSource) {
 				dataset : dataset ? dataset : getSelectedDataset(),
 				numTopics : numTopics ? numTopics : getNumberOfTopics(),
 				dataSource : dataSource ? dataSource : getDataSource(),
-				numEntries : 500
+				numEntries : 5000,
+				maxEntriesPerTopic : 10
 			});
 		}
 		socket.onmessage = function(msg) {
