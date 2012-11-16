@@ -1,18 +1,18 @@
-topicbox | simple topic modeling for fun & profit
---------------------------------
+topicbox | simple topic modeling toolkit
+----------------------------------------
 
-(work in progress - nothing useful here yet)
+... just a simple interactive LDA modeling service/ui enabling you to :
 
-What's All This [topicbox] Stuff Anyhow ?
-
-* simple (streaming) topic modeling service
-* basic UI enabling iteration/debugging of lda models
-* enable easy integration with wide range of data sources
-* support streaming processing / topic migration callbacks etc.
+* retrieve data from arbitrary sources (filesystem/http/hdfs...) and in arbitrary formats (csv,xml,json..)
+* estimate simple LDA model
+* browse results (topic/data/co-occurrence matrix views)
+* change model configuration params
+* repeat
+* have fun :)
 
 ### Implementation
 
-* Core LDA functionality is provided by Mallet package (http://mallet.cs.umass.edu/)
+* Core LDA functionality provided by Mallet package (http://mallet.cs.umass.edu/)
 
 ### License:
 

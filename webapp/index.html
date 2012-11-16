@@ -19,129 +19,139 @@
 
 </head>
 
-<body>
+<body onload=listModels()>
 
 <div class="container">
 
-    <section id="header">
-        <div class="row">
-            <div class="column span_12">
-                <h2><a href="#" onClick=window.location.reload()>topicbox</a></h2>
-            </div>
-        </div>
-    </section>
+  <!-- new data source modal -->
 
-    <section id="tagline">
-        <div class="row">
-            <div class="column span_12">
-                <h3>latent dirichlet allocation demo</h3>
-            </div>
-        </div>
-    </section>
+  <div id="addNewSourceModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
 
-    <section id="filters" class="option-set">
-        <div class="row">
-            <div class="column span_12" align="right">
-                <a href='#' data-filter="*" onclick=loadTopics()>Topic View</a>
-                <a href='#' data-filter="*" onclick=loadData()>Data View</a>
-                <a href='#' data-filter="*" onclick=listModels()>List Models</a>
-                <a href='#' data-filter="*" onClick=window.location.reload()>Configure</a>
-                <p>dataset : <span id="selected_dataset">none</span>&nbsp;</p>
-		<p><span id="data_source"></span></p>
-            </div>
-        </div>
-    </section>
+    <div class="modal-header">
+      <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+      <h3 id="myModalLabel">add new data source</h3>
+    </div>
 
-    <section id="content">
+    <div class="modal-body">
 
-        <div class="row">
-            <div class="column span_12" id="topics">
+      <h4>+ custom data source</h4><p></p>
+      <input type="text" placeholder="enter data source uri" id="custom_task_uri"/>
+      <select>
+	<option>simple line format</option>
+	<option>source code</option>
+	<option>XML</option>
+      </select>
 
-                <div align="right">
-                    number of topics
-                    <select id="number_of_topics">
-                        <option>5</option>
-                        <option>10</option>
-                        <option selected="selected">25</option>
-                        <option>50</option>
-                        <option>100</option>
-                    </select>
-                </div>
+      <p></p>
+      <h4>+ sample data</h4>
+      
+      <section id="select_filter">
 
+	<!-- TODO : load available samples from server -->
 
-                <div id="customSourceModal" class="modal hide fade" tabindex="-1" role="dialog"
-                     aria-labelledby="myModalLabel" aria-hidden="true">
-                    <div class="modal-header">
-                        <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
-                        <h3 id="myModalLabel">add custom data source</h3>
-                    </div>
-                    <div class="modal-body">
-                        <input type="text" placeholder="enter data source uri" id="custom_task_uri">
-                        <select>
-                            <option>simple line format</option>
-                            <option>source code</option>
-                            <option>XML</option>
-                        </select>
-                    </div>
-                    <div class="modal-footer">
-                        <button class="btn" data-dismiss="modal" aria-hidden="true">Close</button>
-                        <button class="btn btn-primary" onclick=$('#customSourceModal').modal('hide');submitLDATask("custom")>Add</button>
-                    </div>
-                </div>
+	<div class="row" id="isotope">
 
-                <h3 align="center" class="data-source">select a data source</h3>
+	  <figure class="filter filters">
+	    <a href="#" onclick=$('#addNewSourceModal').modal('hide');submitLDATask("scholar")>
+	      <div class="description">
+		<h3 class="data-source-description">scholar</h3>
+		<p>scholarly article topics</p>
+	      </div>
+	    </a>
+	  </figure>	
 
-                <section id="select_filter">
-                    <div class="row" id="isotope">
-                        <figure class="filter filters">
-                            <a href="#" onclick=submitLDATask("twitter")>
-                            <div class="description">
-                                <h3 class="data-source-description">twitter</h3>
+	  <figure class="filter filters">
+	    <a href="#" onclick=$('#addNewSourceModal').modal('hide');submitLDATask("syslog")>
+	      <div class="description">
+		<h3 class="data-source-description">syslog</h3>
+		<p>unix messages log stream</p>
+	      </div>
+	    </a>
+	  </figure>	
 
-                                <p>sample spritzer feed</p>
-                                </a>
-                            </div>
-                        </figure>
-                        <figure class="filter filters">
-                            <a href="#" onclick=submitLDATask("syslog")>
-                            <div class="description">
-                                <h3 class="data-source-description">syslog</h3>
+	  <figure class="filter filters">
+	    <a href="#" onclick=$('#addNewSourceModal').modal('hide');submitLDATask("twitter")>
+	      <div class="description">
+		<h3 class="data-source-description">twitter</h3>
+		<p>sample spritzer feed</p>
+	      </div>
+	    </a>
+	  </figure>	
+	  
+	</div>
 
-                                <p>unix messages log stream</p>
-                                </a>
-                            </div>
-                        </figure>
-                        <figure class="filter filters">
-                            <a href="#" onclick=submitLDATask("scholar")>
-                            <div class="description">
-                                <h3 class="data-source-description">scholar</h3>
+      </section>
 
-                                <p>scholarly article topics</p>
-                                </a>
-                            </div>
-                        </figure>
-                        <figure class="filter filters">
-                            <a href="#customSourceModal" role="button" data-toggle="modal">
-                                <div class="description">
-                                    <h3 class="data-source-description">custom</h3>
-                                    <p>a data source of your own</p>
-                                </div>
-                            </a>
-                    </figure>
-            </div>
-    </section>
+      <div align="left">
+	<p>number of topics</p>
+	<select id="number_of_topics">
+	  <option>5</option>
+	  <option>10</option>
+	  <option selected="selected">25</option>
+	  <option>50</option>
+	  <option>100</option>
+	</select>
+      </div>
 
-</div>
+    </div>
 
-</div>
+    <div class="modal-footer">
+      <button class="btn" data-dismiss="modal" aria-hidden="true">Close</button>
+      <button class="btn btn-primary" onclick=$('#addNewSourceModal').modal('hide');submitLDATask("custom")>Add</button>
+    </div>
 
-</section>
+  </div>
 
-<div id="container">
-</div>
+  <!-- page header -->
 
-<hr>
-<p class="pull-right"><a href="#">Back to top</a></p>
+  <section id="header">
+    <div class="row">
+      <div class="column span_12">
+	<h2><a href="#" onClick=window.location.reload()>topicbox</a></h2>
+      </div>
+    </div>
+  </section>
+
+  <section id="tagline">
+    <div class="row">
+      <div class="column span_12">
+	<h3>latent dirichlet allocation tool</h3>
+      </div>
+    </div>
+  </section>
+
+  <!-- nav bar -->
+  
+  <section id="filters" class="option-set">
+    <div class="row">
+      <div class="column span_12" align="right">
+	<a href='#' onclick=loadTopics()>Topic View</a>
+	<a href='#' onclick=loadData()>Data View</a>
+	<a href='#' onclick=listModels()>List Models</a>
+	<a href="#addNewSourceModal" data-toggle="modal">+ Data Source</a>
+	<p>dataset : <span id="selected_dataset">none</span>&nbsp;</p>
+	<p><span id="data_source"></span></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- main content render -->
+
+  <section id="content">
+    <div class="row">
+      <div class="column span_12" id="topics">
+      </div>
+    </div>
+  </section>
+
+  <!-- auxiliary container -->
+
+  <div id="container">
+  </div>
+
+  <!-- TODO : should be proper footer -->
+  <hr>
+  <p class="pull-right"><a href="#">Back to top</a></p>
 
 </div>
 

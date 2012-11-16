@@ -1,5 +1,3 @@
-
-
 // topicbox service configuration | TODO : change the way this is retrieved
 var WEBSOCKET_ENDPOINT = "ws://localhost:1981/ws/";
 var TOPIC_RENAME_POST_URI  = "http://localhost:1981/renameTopic";
@@ -18,6 +16,7 @@ function sendRequest(socket, data) {
 // submit data source for lda model estimation
 //
 function submitLDATask(task, numTopics) {
+
 	var taskData = "";
 	if (task == "custom") {
 		taskData = $("#custom_task_uri")[0].value;
@@ -256,6 +255,10 @@ function listModels() {
 	}
 	socket.onmessage = function(msg) {
 	    var result = $.parseJSON(msg.data);
+	    if (result.length == 0) {
+		renderNoModelsAvailable();
+		return;
+	    }
 	    for (var id in result) {
 		message("<h2 class=\"data-source\"><a href=\"#\" " 
 			+ "onclick=loadTopics(\"" + result[id]["taskName"] +"\"," + result[id]["numTopics"]  + ",\"" + result[id]["dataSource"] + "\")>" 
@@ -308,8 +311,12 @@ function loadKeywordDescription(keywordName) {
 	}
 }
 
+function renderNoModelsAvailable() {
+	message("[+] no models available. use <a href=\"#addNewSourceModal\" data-toggle=\"modal\">Add Data Source</a> tab to estimate new model");
+}
+
 function renderNoDataAvailable() {
-	message("[+] no data available. use <a href=\"#\" onClick=window.location.reload()>configure</a> tab to select data source");
+	message("[+] no data available. use <a href=\"#\" onClick=window.location.reload()>Add Data Source</a> tab to estimate new model");
 }
 
 function renderInferenceNotReady() {
@@ -378,7 +385,7 @@ function getDataSource() {
 
 // write message 
 function message(msg) {
-	$("#topics").append("<h4>").append(msg).append("</h4>");
+	$("#topics").append("<h4>" + msg + "</h4>");
 }
 
 // remove all elements
